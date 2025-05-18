@@ -9,6 +9,7 @@
 use log::info;
 use uefi::prelude::*;
 
+
 // UEFIアプリケーションのmain関数は引数を取らず、Statusを返す
 #[entry] 
 fn main() -> Status {
