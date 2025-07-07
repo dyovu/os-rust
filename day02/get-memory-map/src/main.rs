@@ -1,7 +1,7 @@
 #![no_main]
 #![no_std]
 
-extern crate alloc;
+extern crate alloc; // no_stdで標準ライブラリの特定部分を使う場合に必要
 use uefi::allocator::Allocator;
 
 // #[global_allocator]でUEFI専用アロケータを指定
@@ -39,6 +39,7 @@ fn main() -> Status {
         Ok(_) => info!("Memory map saved successfully"),
         Err(e) => info!("Failed to save memory map: {:?}", e),
     }
+    boot::stall(10_000_000);
     
     Status::SUCCESS
 }
