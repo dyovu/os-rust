@@ -42,6 +42,8 @@ static ALLOCATOR: uefi::allocator::Allocator = uefi::allocator::Allocator;
 fn main() -> Status {
     uefi::helpers::init().unwrap();
 
+    info!("FrameBufferInfo size: {}", core::mem::size_of::<FrameBufferInfo>());
+
     let mt: MemoryType = MemoryType::LOADER_DATA;
     let memory_map_result: MemoryMapOwned = match memory_map(mt) {
         Ok(map) => map,
@@ -52,9 +54,8 @@ fn main() -> Status {
     };
     info!("Memory map retrieved with {} entries", memory_map_result.entries().count());
 
-    
-    info!("About to get framebuffer info...");
-    // カーネルに渡すためのGraphicsBufferを取得する
+    // info!("About to get framebuffer info...");
+    // カーネルに渡すためのGraphicsBufferを取得
     let framebuffer_info: FrameBufferInfo = match get_framebuffer_info() {
         Ok(info) => info,
         Err(e) => {
@@ -71,8 +72,7 @@ fn main() -> Status {
     info!("Kernel first bytes: {:02x} {:02x} {:02x} {:02x}", 
       kernel_data[0], kernel_data[1], kernel_data[2], kernel_data[3]);
 
-    // ブートサービス終了
-    info!("Getting fresh memory map for exit...");
+    // info!("Getting fresh memory map for exit...");
     let pre_exit_memory_map = match memory_map(mt) {
         Ok(map) => map,
         Err(e) => {
@@ -82,22 +82,63 @@ fn main() -> Status {
     };
     info!("Pre-exit memory map has {} entries", pre_exit_memory_map.entries().count());
 
-    // エントリー情報を事前に収集（ブートサービス終了前）
-    let mut memory_entries = Vec::new();
+    // // エントリー情報を事前に収集
+    // let mut memory_entries = Vec::new();
+    // for entry in pre_exit_memory_map.entries() {
+    //     memory_entries.push(RawMemoryDescriptor {
+    //         memory_type: entry.ty.0,
+    //         physical_start: entry.phys_start,
+    //         virtual_start: entry.virt_start,
+    //         number_of_pages: entry.page_count,
+    //         attribute: entry.att.bits(),
+    //     });
+    // }
+
+    let mut memory_entries_array = [RawMemoryDescriptor {
+        memory_type: 0,
+        physical_start: 0,
+        virtual_start: 0,
+        number_of_pages: 0,
+        attribute: 0,
+    }; 200]; // 最大200エントリ
+    
+    let mut count = 0;
     for entry in pre_exit_memory_map.entries() {
-        memory_entries.push(RawMemoryDescriptor {
+        if count >= 200 {
+            break; // 配列の範囲を超えないよう制限
+        }
+        memory_entries_array[count] = RawMemoryDescriptor {
             memory_type: entry.ty.0,
             physical_start: entry.phys_start,
             virtual_start: entry.virt_start,
             number_of_pages: entry.page_count,
             attribute: entry.att.bits(),
-        });
+        };
+        count += 1;
     }
+    info!("Collected {} memory entries", count);
+
+
     let meta_desc_size = pre_exit_memory_map.meta().desc_size;
+    info!("Memory descriptor size: {}", meta_desc_size);
 
 
+    let final_count = count;
+    let final_desc_size = meta_desc_size;
+    let final_width = framebuffer_info.width;
+    let final_height = framebuffer_info.height;
+    let final_buffer = framebuffer_info.buffer as u64;
+
+    info!("final_count: {}", final_count);
+    info!("final_desc_size: {}", final_desc_size);
+    info!("final_width: {}", final_width);
+    info!("final_height: {}", final_height);
+    info!("final_buffer: {:x}", final_buffer);
+
+    /*
+    * これを実行した後はlogが使えなくなる、vectorも？
+    */
     let memory_map_final: MemoryMapOwned = unsafe { exit_boot_services(Some(mt)) };
-
 
     // カーネルを1MBにコピーしてジャンプ
     let kernel_entry = 0x100000 as *mut u8;
@@ -108,18 +149,18 @@ fn main() -> Status {
             kernel_data.len()
         );
         
+
         let kernel_main: extern "C" fn(
-            memory_entries_ptr: *const RawMemoryDescriptor,
-            memory_entries_len: usize,
-            descriptor_size: usize,
-            framebuffer_info: FrameBufferInfo
+            u64, u64, u64, u64, u64, u64
         ) -> ! = 
             core::mem::transmute(kernel_entry);
         kernel_main(
-            memory_entries.as_ptr(),
-            memory_entries.len(),
-            meta_desc_size,
-            framebuffer_info
+            final_count as u64, // メモリエントリの数
+            final_desc_size as u64, // メモリ記述子のサイズ
+            final_width as u64, // フレームバッファの幅
+            final_height as u64, // フレームバッファの高さ
+            final_buffer, // フレームバッファのアドレス
+
         );
     }
 }

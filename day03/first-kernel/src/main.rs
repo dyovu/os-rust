@@ -4,14 +4,15 @@
 use core::arch::asm;
 use core::panic::PanicInfo;
 
-#[repr(C)] 
-pub struct FrameBufferInfo {
-    buffer: *mut u8,
+
+#[repr(C)] // 構造体のメモリレイアウトをC言語と同じにするやつらしい
+struct FrameBufferInfo {
+    buffer: *mut u8, // フレームバッファのメモリ領域の先頭アドレス
     buffer_size: usize,
     width: usize,
     height: usize,
     pixels_per_scan_line: usize,
-    pixel_format: u32,
+    pixel_format: u32, // PixelFormat情報
 }
 
 #[repr(C)]
@@ -171,40 +172,89 @@ fn print_pixel_format(format: u32) {
 }
 
 #[unsafe(no_mangle)]
+#[unsafe(link_section = ".text._start")]
 pub extern "C" fn _start(
-    memory_entries_ptr: *const RawMemoryDescriptor,
-    memory_entries_len: usize,
-    descriptor_size: usize,
-    framebuffer_info: FrameBufferInfo
+    // memory_entries_ptr: *const RawMemoryDescriptor,
+    // memory_entries_len: usize,
+    // descriptor_size: usize,
+    // framebuffer_info: *const FrameBufferInfo
+    mem_ptr: u64,
+    mem_len: u64, 
+    desc_size: u64,
+    fb_width: u64,
+    fb_height: u64,
+    fb_buffer: u64
 ) -> ! {
-    serial_print_str("Hello, world from kernel\n");
     serial_print_str("\n");
     serial_print_str("=====================================\n");
     serial_print_str("    KERNEL BOOT INFORMATION\n");
     serial_print_str("=====================================\n");
+
+    serial_print_str("Hello, world from kernel\n");
     
-    serial_print_str("\n=== FRAME BUFFER INFORMATION ===\n");
-    serial_print_str("Resolution    : ");
-    print_decimal(framebuffer_info.width as u64);
+
+    serial_print_str("Memory entries pointer: 0x");
+    print_hex(mem_ptr);
+    serial_print_str("\n");
+
+    serial_print_str("Framebuffer pointer: 0x");
+    print_hex(fb_buffer);
+    serial_print_str("\n");
+    
+    serial_print_str("Memory entries: ");
+    print_decimal(mem_len);
+    serial_print_str("\n");
+    
+    serial_print_str("Descriptor size: ");
+    print_decimal(desc_size);
+    serial_print_str("\n");
+    
+    serial_print_str("Resolution: ");
+    print_decimal(fb_width);
     serial_print_str(" x ");
-    print_decimal(framebuffer_info.height as u64);
+    print_decimal(fb_height);
     serial_print_str("\n");
+
+    // serial_print_str("memory_entries_ptr: 0x");
+    // print_hex(memory_entries_ptr as u64);
+    // serial_print_str("\n");
+
+    // serial_print_str("memory_entries_len: ");
+    // print_decimal(memory_entries_len as u64);
+    // serial_print_str("\n");
+    // serial_print_str("descriptor_size: ");
+    // print_decimal(descriptor_size as u64);
+    // serial_print_str("\n");
     
-    serial_print_str("Buffer Address: 0x");
-    print_hex(framebuffer_info.buffer as u64);
-    serial_print_str("\n");
+    // serial_print_str("\n=== FRAME BUFFER INFORMATION ===\n");
+    // serial_print_str("Resolution    : ");
+    // print_decimal(framebuffer_info.width as u64);
+    // serial_print_str(" x ");
+    // print_decimal(framebuffer_info.height as u64);
+    // serial_print_str("\n");
+
+    // serial_print_str("  800: ");
+    // print_decimal(800);
+    // serial_print_str("\n");
+    // serial_print_str("  1280: ");
+    // print_decimal(1280);
+    // serial_print_str("\n");
     
-    serial_print_str("Buffer Size   : ");
-    print_memory_size(framebuffer_info.buffer_size as u64);
-    serial_print_str("\n");
+    // serial_print_str("Buffer Address: 0x");
+    // print_hex(framebuffer_info.buffer as u64);
+    // serial_print_str("\n");
     
-    serial_print_str("Stride        : ");
-    print_decimal(framebuffer_info.pixels_per_scan_line as u64);
-    serial_print_str(" pixels/line\n");
+    // serial_print_str("Buffer Size   : ");
+    // print_memory_size(framebuffer_info.buffer_size as u64);
+    // serial_print_str("\n");
     
-    serial_print_str("Pixel Format  : ");
-    print_pixel_format(framebuffer_info.pixel_format);
-    serial_print_str("\n");
+    // serial_print_str("Stride        : ");
+    // print_decimal(framebuffer_info.pixels_per_scan_line as u64);
+    // serial_print_str(" pixels/line\n");
+    
+    // serial_print_str("Pixel Format  : ");
+    // print_pixel_format(framebuffer_info.pixel_format);
+    // serial_print_str("\n");
 
     // unsafe {
     //     let memory_entries = core::slice::from_raw_parts(
