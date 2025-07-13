@@ -72,7 +72,15 @@ fn main() -> Status {
     info!("Kernel first bytes: {:02x} {:02x} {:02x} {:02x}", 
       kernel_data[0], kernel_data[1], kernel_data[2], kernel_data[3]);
 
-    // info!("Getting fresh memory map for exit...");
+
+    let final_width = framebuffer_info.width;
+    let final_height = framebuffer_info.height;
+    let final_buffer = framebuffer_info.buffer as u64;
+
+    info!("final_width: {}", final_width);
+    info!("final_height: {}", final_height);
+    info!("final_buffer: {:x}", final_buffer);
+
     let pre_exit_memory_map = match memory_map(mt) {
         Ok(map) => map,
         Err(e) => {
@@ -80,65 +88,103 @@ fn main() -> Status {
             return Status::ABORTED;
         }
     };
-    info!("Pre-exit memory map has {} entries", pre_exit_memory_map.entries().count());
 
-    // // エントリー情報を事前に収集
-    // let mut memory_entries = Vec::new();
-    // for entry in pre_exit_memory_map.entries() {
-    //     memory_entries.push(RawMemoryDescriptor {
-    //         memory_type: entry.ty.0,
-    //         physical_start: entry.phys_start,
-    //         virtual_start: entry.virt_start,
-    //         number_of_pages: entry.page_count,
-    //         attribute: entry.att.bits(),
-    //     });
-    // }
-
-    let mut memory_entries_array = [RawMemoryDescriptor {
+    let mut final_memory_entries_array = [RawMemoryDescriptor {
         memory_type: 0,
         physical_start: 0,
         virtual_start: 0,
         number_of_pages: 0,
         attribute: 0,
     }; 200]; // 最大200エントリ
-    
-    let mut count = 0;
+
+    let mut final_count = 0;
     for entry in pre_exit_memory_map.entries() {
-        if count >= 200 {
+        if final_count >= 200 {
             break; // 配列の範囲を超えないよう制限
         }
-        memory_entries_array[count] = RawMemoryDescriptor {
+        final_memory_entries_array[final_count] = RawMemoryDescriptor {
             memory_type: entry.ty.0,
             physical_start: entry.phys_start,
             virtual_start: entry.virt_start,
             number_of_pages: entry.page_count,
             attribute: entry.att.bits(),
         };
-        count += 1;
+        final_count += 1;
     }
-    info!("Collected {} memory entries", count);
 
+    let final_memory_entries_ptr = final_memory_entries_array.as_ptr() as u64;
+    let final_memory_entries_len = final_count as u64;  // 114エントリ
+    let final_memory_desc_size = pre_exit_memory_map.meta().desc_size as u64;  // 48バイト
 
-    let meta_desc_size = pre_exit_memory_map.meta().desc_size;
-    info!("Memory descriptor size: {}", meta_desc_size);
+    info!("Final memory entries pointer: {:x}", final_memory_entries_ptr);
+    info!("Final memory entries length: {}", final_memory_entries_len);
+    info!("Final memory descriptor size: {}", final_memory_desc_size);
 
+    // ポインタを作ってる。ポインタはアドレスと型を組み合わせたもの
+    let memory_data_address = 0x70000 as *mut RawMemoryDescriptor;  // カーネル+64KB後
+    let args_address = 0x80000 as *mut u64;
+    unsafe {
+        // 配列データを0x70000番地にコピー
+        core::ptr::copy_nonoverlapping(
+            final_memory_entries_array.as_ptr(),
+            memory_data_address,
+            final_count
+        );
+        
+        // 引数を0x80000番地に書き込み
+        core::ptr::write(args_address.offset(0), memory_data_address as u64);  // 新しいポインタ
+        core::ptr::write(args_address.offset(1), final_memory_entries_len);    
+        core::ptr::write(args_address.offset(2), final_memory_desc_size);      
+        core::ptr::write(args_address.offset(3), final_width as u64);          
+        core::ptr::write(args_address.offset(4), final_height as u64);         
+        core::ptr::write(args_address.offset(5), final_buffer);    
 
-    let final_count = count;
-    let final_desc_size = meta_desc_size;
-    let final_width = framebuffer_info.width;
-    let final_height = framebuffer_info.height;
-    let final_buffer = framebuffer_info.buffer as u64;
+        info!("Verification - args_address: {:x}, wrote ptr: {:x}, read back: {:x}", args_address.offset(0) as u64, memory_data_address as u64, core::ptr::read(args_address.offset(0)));
+        info!("Verification - args_address: {:x}, wrote len: {}, read back: {}", args_address.offset(1) as u64, final_memory_entries_len, core::ptr::read(args_address.offset(1)));
+        info!("Verification - args_address: {:x}, wrote desc: {}, read back: {}", args_address.offset(2) as u64, final_memory_desc_size, core::ptr::read(args_address.offset(2)));
+        info!("Verification - args_address: {:x}, wrote width: {}, read back: {}", args_address.offset(3) as u64, final_width, core::ptr::read(args_address.offset(3)));
+        info!("Verification - args_address: {:x}, wrote height: {}, read back: {}", args_address.offset(4) as u64, final_height, core::ptr::read(args_address.offset(4)));
+        info!("Verification - args_address: {:x}, wrote buffer: {:x}, read back: {:x}", args_address.offset(5) as u64, final_buffer, core::ptr::read(args_address.offset(5)));
+    }
 
-    info!("final_count: {}", final_count);
-    info!("final_desc_size: {}", final_desc_size);
-    info!("final_width: {}", final_width);
-    info!("final_height: {}", final_height);
-    info!("final_buffer: {:x}", final_buffer);
+    // let memory_data_address = 0x70000 as *mut RawMemoryDescriptor;
+    // let args_address_safe = 0x91100 as *mut u64;  // 安全な場所
+    // let args_address_stable = 0x80000 as *mut u64; // 上書きされる場所
+    // unsafe {
+    //     // 配列データを0x70000番地にコピー
+    //     core::ptr::copy_nonoverlapping(
+    //         final_memory_entries_array.as_ptr(),
+    //         memory_data_address,
+    //         final_count
+    //     );
+        
+    //     // 上書きされる引数は安全な場所（0x90000）に保存
+    //     core::ptr::write(args_address_safe.offset(2), 999u64);    // mem_len  
+    //     core::ptr::write(args_address_safe.offset(3), 333u64);      // desc_size
+        
+    //     // 上書きされない引数は元の場所（0x80000）に保存
+    //     core::ptr::write(args_address_stable.offset(0), memory_data_address as u64);  // mem_ptr
+    //     core::ptr::write(args_address_stable.offset(1), final_width as u64);       // fb_width
+    //     core::ptr::write(args_address_stable.offset(2), final_height as u64);      // fb_height
+    //     core::ptr::write(args_address_stable.offset(3), final_buffer);             // fb_buffer
+
+        
+    //     info!("Verification - args_address_safe: {:x}, wrote len: {}, read back: {}", args_address_safe.offset(2) as u64, final_memory_entries_len, core::ptr::read(args_address_safe.offset(2)));
+    //     info!("Verification - args_address_safe: {:x}, wrote desc: {}, read back: {}", args_address_safe.offset(3) as u64, final_memory_desc_size, core::ptr::read(args_address_safe.offset(3)));
+
+    //     info!("Verification - args_address_safe: {:x}, wrote ptr: {:x}, read back: {:x}", args_address_stable.offset(0) as u64, memory_data_address as u64, core::ptr::read(args_address_stable.offset(0)));
+    //     info!("Verification - args_address_danger: {:x}, wrote width: {}, read back: {}", args_address_stable.offset(1) as u64, final_width, core::ptr::read(args_address_stable.offset(1)));
+    //     info!("Verification - args_address_danger: {:x}, wrote height: {}, read back: {}", args_address_stable.offset(2) as u64, final_height, core::ptr::read(args_address_stable.offset(2)));
+    //     info!("Verification - args_address_danger: {:x}, wrote buffer: {:x}, read back: {:x}", args_address_stable.offset(3) as u64, final_buffer, core::ptr::read(args_address_stable.offset(3)));
+    // }
+
 
     /*
     * これを実行した後はlogが使えなくなる、vectorも？
     */
     let memory_map_final: MemoryMapOwned = unsafe { exit_boot_services(Some(mt)) };
+
+    
 
     // カーネルを1MBにコピーしてジャンプ
     let kernel_entry = 0x100000 as *mut u8;
@@ -146,21 +192,25 @@ fn main() -> Status {
         core::ptr::copy_nonoverlapping( // カーネルデータを1MBのアドレスにコピー
             kernel_data.as_ptr(),
             kernel_entry,
-            kernel_data.len()
+            kernel_data.len() + 12
         );
-        
 
         let kernel_main: extern "C" fn(
-            u64, u64, u64, u64, u64, u64
+            // mem_ptr: u64,      // メモリのエントリのポインタ
+            // mem_len: u64,      // メモリエントリの数
+            // desc_size: u64,    // メモリディスクリプタのサイズ
+            // fb_width: u64,     // フレームバッファの幅
+            // fb_height: u64,    // フレームバッファの高さ
+            // fb_buffer: u64     // フレームバッファのアドレス
         ) -> ! = 
             core::mem::transmute(kernel_entry);
         kernel_main(
-            final_count as u64, // メモリエントリの数
-            final_desc_size as u64, // メモリ記述子のサイズ
-            final_width as u64, // フレームバッファの幅
-            final_height as u64, // フレームバッファの高さ
-            final_buffer, // フレームバッファのアドレス
-
+            // final_memory_entries_ptr,  // mem_ptr: メモリエントリ配列のポインタ
+            // final_memory_entries_len as u64,  // mem_len: メモリエントリの数
+            // final_memory_desc_size as u64,  // desc_size: メモリディスクリプタのサイズ
+            // final_width as u64,   // fb_width: フレームバッファの幅
+            // final_height as u64,  // fb_height: フレームバッファの高さ
+            // final_buffer // fb_buffer: フレームバッファのアドレス
         );
     }
 }

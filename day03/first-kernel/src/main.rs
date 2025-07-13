@@ -174,17 +174,58 @@ fn print_pixel_format(format: u32) {
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text._start")]
 pub extern "C" fn _start(
-    // memory_entries_ptr: *const RawMemoryDescriptor,
-    // memory_entries_len: usize,
-    // descriptor_size: usize,
-    // framebuffer_info: *const FrameBufferInfo
-    mem_ptr: u64,
-    mem_len: u64, 
-    desc_size: u64,
-    fb_width: u64,
-    fb_height: u64,
-    fb_buffer: u64
+    // mem_ptr: u64,
+    // mem_len: u64, 
+    // desc_size: u64,
+    // fb_width: u64,
+    // fb_height: u64,
+    // fb_buffer: u64
 ) -> ! {
+    // 0x200000番地から全ての引数を読み取り
+    let args_address = 0x80000 as *const u64;
+    let (mem_ptr, mem_len, desc_size, fb_width, fb_height, fb_buffer) = unsafe {
+        (
+            core::ptr::read(args_address.offset(0)), // mem_ptr
+            core::ptr::read(args_address.offset(1)), // mem_len
+            core::ptr::read(args_address.offset(2)), // desc_size
+            core::ptr::read(args_address.offset(3)), // fb_width
+            core::ptr::read(args_address.offset(4)), // fb_height
+            core::ptr::read(args_address.offset(5)), // fb_buffer
+        )
+    };
+
+
+    // let args_address_safe = 0x91100 as *const u64;    // 安全な場所
+    // let args_address_stable = 0x80000 as *const u64;  // 上書きされる場所
+
+
+    // let mem_len_raw = unsafe { core::ptr::read(args_address_safe.offset(2)) };
+    // let desc_size_raw = unsafe { core::ptr::read(args_address_safe.offset(3)) };
+
+    // // デバッグ出力を追加
+    // serial_print_str("DEBUG - Raw mem_len from 0x91110: ");
+    // print_decimal(mem_len_raw);
+    // serial_print_str("\n");
+
+    // serial_print_str("DEBUG - Raw desc_size from 0x91118: ");
+    // print_decimal(desc_size_raw);
+    // serial_print_str("\n");
+
+
+
+    // let (mem_len, desc_size, mem_ptr, fb_width, fb_height, fb_buffer) = unsafe {
+    //     (
+            
+    //         core::ptr::read(args_address_safe.offset(2)),   // mem_len
+    //         core::ptr::read(args_address_safe.offset(3)),   // desc_size
+
+    //         core::ptr::read(args_address_stable.offset(0)),   // mem_ptr
+    //         core::ptr::read(args_address_stable.offset(1)), // fb_width
+    //         core::ptr::read(args_address_stable.offset(2)), // fb_height
+    //         core::ptr::read(args_address_stable.offset(3)), // fb_buffer
+    //     )
+    // };
+
     serial_print_str("\n");
     serial_print_str("=====================================\n");
     serial_print_str("    KERNEL BOOT INFORMATION\n");
@@ -192,7 +233,6 @@ pub extern "C" fn _start(
 
     serial_print_str("Hello, world from kernel\n");
     
-
     serial_print_str("Memory entries pointer: 0x");
     print_hex(mem_ptr);
     serial_print_str("\n");
@@ -215,127 +255,6 @@ pub extern "C" fn _start(
     print_decimal(fb_height);
     serial_print_str("\n");
 
-    // serial_print_str("memory_entries_ptr: 0x");
-    // print_hex(memory_entries_ptr as u64);
-    // serial_print_str("\n");
-
-    // serial_print_str("memory_entries_len: ");
-    // print_decimal(memory_entries_len as u64);
-    // serial_print_str("\n");
-    // serial_print_str("descriptor_size: ");
-    // print_decimal(descriptor_size as u64);
-    // serial_print_str("\n");
-    
-    // serial_print_str("\n=== FRAME BUFFER INFORMATION ===\n");
-    // serial_print_str("Resolution    : ");
-    // print_decimal(framebuffer_info.width as u64);
-    // serial_print_str(" x ");
-    // print_decimal(framebuffer_info.height as u64);
-    // serial_print_str("\n");
-
-    // serial_print_str("  800: ");
-    // print_decimal(800);
-    // serial_print_str("\n");
-    // serial_print_str("  1280: ");
-    // print_decimal(1280);
-    // serial_print_str("\n");
-    
-    // serial_print_str("Buffer Address: 0x");
-    // print_hex(framebuffer_info.buffer as u64);
-    // serial_print_str("\n");
-    
-    // serial_print_str("Buffer Size   : ");
-    // print_memory_size(framebuffer_info.buffer_size as u64);
-    // serial_print_str("\n");
-    
-    // serial_print_str("Stride        : ");
-    // print_decimal(framebuffer_info.pixels_per_scan_line as u64);
-    // serial_print_str(" pixels/line\n");
-    
-    // serial_print_str("Pixel Format  : ");
-    // print_pixel_format(framebuffer_info.pixel_format);
-    // serial_print_str("\n");
-
-    // unsafe {
-    //     let memory_entries = core::slice::from_raw_parts(
-    //         memory_entries_ptr, 
-    //         memory_entries_len
-    //     );
-        
-    //     serial_print_str("\n=== MEMORY MAP ANALYSIS ===\n");
-    //     serial_print_str("Total Entries : ");
-    //     print_decimal(memory_entries_len as u64);
-    //     serial_print_str("\n");
-    //     serial_print_str("Descriptor Size: ");
-    //     print_decimal(descriptor_size as u64);
-    //     serial_print_str(" bytes\n\n");
-        
-    //     let mut total_memory = 0u64;
-    //     let mut usable_memory = 0u64;
-    //     let mut reserved_memory = 0u64;
-    //     let mut firmware_memory = 0u64;
-        
-    //     for (index, entry) in memory_entries.iter().enumerate() {
-    //         let size_bytes = entry.number_of_pages * 4096;
-    //         total_memory += size_bytes;
-            
-    //         match entry.memory_type {
-    //             7 => usable_memory += size_bytes,
-    //             0 | 8..=13 => reserved_memory += size_bytes,
-    //             1..=6 => firmware_memory += size_bytes,
-    //             _ => {}
-    //         }
-            
-    //         serial_print_str("Entry ");
-    //         if index < 10 {
-    //             serial_print_str(" ");
-    //         }
-    //         print_decimal(index as u64);
-    //         serial_print_str(": ");
-    //         print_memory_type(entry.memory_type);
-    //         serial_print_str("\n");
-            
-    //         serial_print_str("    Address Range: 0x");
-    //         print_hex(entry.physical_start);
-    //         serial_print_str(" - 0x");
-    //         print_hex(entry.physical_start + size_bytes - 1);
-    //         serial_print_str("\n");
-            
-    //         serial_print_str("    Size         : ");
-    //         print_memory_size(size_bytes);
-    //         serial_print_str(" (");
-    //         print_decimal(entry.number_of_pages);
-    //         serial_print_str(" pages)\n");
-            
-    //         serial_print_str("    Attributes   : 0x");
-    //         print_hex(entry.attribute);
-    //         serial_print_str("\n\n");
-    //     }
-        
-    //     serial_print_str("=== MEMORY SUMMARY ===\n");
-    //     serial_print_str("Total Memory     : ");
-    //     print_memory_size(total_memory);
-    //     serial_print_str("\n");
-        
-    //     serial_print_str("Usable Memory    : ");
-    //     print_memory_size(usable_memory);
-    //     serial_print_str(" (");
-    //     print_decimal((usable_memory * 100) / total_memory);
-    //     serial_print_str("%)\n");
-        
-    //     serial_print_str("Reserved Memory  : ");
-    //     print_memory_size(reserved_memory);
-    //     serial_print_str(" (");
-    //     print_decimal((reserved_memory * 100) / total_memory);
-    //     serial_print_str("%)\n");
-        
-    //     serial_print_str("Firmware Memory  : ");
-    //     print_memory_size(firmware_memory);
-    //     serial_print_str(" (");
-    //     print_decimal((firmware_memory * 100) / total_memory);
-    //     serial_print_str("%)\n");
-    // }
-    
     serial_print_str("\n=== KERNEL READY ===\n");
     serial_print_str("System initialization completed successfully!\n");
     serial_print_str("Kernel is now running...\n\n");
