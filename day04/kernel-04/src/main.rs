@@ -171,6 +171,8 @@ fn print_pixel_format(format: u32) {
     }
 }
 
+
+
 // 与えられたフレームバッファのアドレスに与えられた色でピクセルを設定
 fn set_pixel(fb_buffer: u64, x: u64, y: u64, width: u64, color: u32) {
     let framebuffer = fb_buffer as *mut u32;
@@ -180,7 +182,7 @@ fn set_pixel(fb_buffer: u64, x: u64, y: u64, width: u64, color: u32) {
     }
 }
 
-// 
+// ブルスク
 fn fill_screen_blue(fb_buffer: u64, width: u64, height: u64) {
     let framebuffer = fb_buffer as *mut u32;
     let total_pixels = (width * height) as isize;
@@ -193,7 +195,7 @@ fn fill_screen_blue(fb_buffer: u64, width: u64, height: u64) {
         }
     }
 }
-
+// グラデーションを描画する関数
 fn draw_gradient(fb_buffer: u64, width: u64, height: u64) {
     for y in 0..height {
         for x in 0..width {
@@ -205,6 +207,57 @@ fn draw_gradient(fb_buffer: u64, width: u64, height: u64) {
         }
     }
 }
+
+/*
+* 以下与えられたフォントデータから文字列を描画するための関数たち
+* あとで別ファイルとか分けて構造体に対してimplするようなじっそうにする　
+*/
+
+static FONT_8X16: &[u8] = include_bytes!("../assets/font8x16.psf");
+// 引数として与えられた座標に8x8の文字を描画する関数
+fn draw_char(
+    fb_buffer: u64, 
+    fb_width: u64, 
+    x: u64, 
+    y: u64, 
+    ch: char, 
+    color: u32
+) {
+    let char_code = ch as usize;
+    if char_code >= 256 { return; } // 範囲外チェック
+    
+    let font_data = FONT_8X8[char_code];
+    
+    for row in 0..8 {
+        let byte = font_data[row];
+        for col in 0..8 {
+            if (byte & (0x80 >> col)) != 0 {
+                set_pixel(fb_buffer, x + col as u64, y + row as u64, fb_width, color);
+            }
+        }
+    }
+}
+
+// 文字列を描画する関数
+fn draw_string(
+    fb_buffer: u64,
+    fb_width: u64,
+    mut x: u64,
+    y: u64,
+    text: &str,
+    color: u32
+) {
+    for ch in text.chars() {
+        if ch == '\n' {
+            // 改行処理は後で実装
+            continue;
+        }
+        draw_char(fb_buffer, fb_width, x, y, ch, color);
+        x += 8; // 次の文字位置に移動
+    }
+}
+
+
 
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text._start")]
@@ -258,6 +311,24 @@ pub extern "C" fn _start() -> ! {
     // fill_screen_blue(fb_buffer, fb_width, fb_height);
 
     draw_gradient(framebuffer_info.buffer as u64, framebuffer_info.width as u64, framebuffer_info.height as u64);
+
+    draw_string(
+        framebuffer_info.buffer as u64,
+        framebuffer_info.width as u64,
+        10,  // x座標
+        10,  // y座標
+        "Hello, World!",
+        0xFF_FF_FF_FF  // 白色（ARGB）
+    );
+
+    draw_string(
+        framebuffer_info.buffer as u64,
+        framebuffer_info.width as u64,
+        10,
+        30,
+        "OS Development!",
+        0xFF_00_FF_00  // 緑色
+    );
     
     loop {}
 }
