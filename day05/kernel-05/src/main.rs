@@ -4,8 +4,6 @@
 use core::arch::asm;
 use core::panic::PanicInfo;
 
-mod font; // フォントデータを別モジュールに分ける
-use font::SIMPLE_FONT; // フォントデータをインポート
 
 #[repr(C)] // 構造体のメモリレイアウトをC言語と同じにするやつらしい
 struct FrameBufferInfo {
@@ -215,7 +213,7 @@ fn draw_gradient(fb_buffer: u64, width: u64, height: u64) {
 * あとで別ファイルとか分けて構造体に対してimplするようなじっそうにする　
 */
 
-// static FONT_8X16: &[u8] = include_bytes!("../assets/font.psf");
+static FONT_8X16: &[u8] = include_bytes!("../assets/font.psf");
 #[repr(C, packed)]
 struct Psf1Header {
     magic: [u8; 2],
@@ -223,7 +221,8 @@ struct Psf1Header {
     char_size: u8, // 文字の高さ
 }
 
-fn draw_char_simple(
+
+fn draw_char(
     fb_buffer: u64, 
     fb_width: u64, 
     x: u64, 
@@ -232,22 +231,45 @@ fn draw_char_simple(
     color: u32
 ) {
     let char_code = ch as usize;
-    if char_code >= 128 { return; }
+    if char_code >= 256 { return; } // 範囲外チェック
+
+    const HEADER_SIZE: usize = 4;
+    let header = unsafe { &*(FONT_8X16.as_ptr() as *const Psf1Header) };
+
+    if header.magic[0] != 0x36 || header.magic[1] != 0x04 {
+        return;
+    }
+
+    let char_height = header.char_size as usize;
+    let char_width = 8; // PSF v1は8px幅で固定
     
-    let font_data = SIMPLE_FONT[char_code];
+    let font_char_data_start = FONT_8X16.as_ptr() as usize + HEADER_SIZE;
+    let char_offset = char_code * char_height;
     
-    for row in 0..16 {
-        let byte = font_data[row];
-        for col in 0..8 {
+    let font_glyph_ptr = (font_char_data_start + char_offset) as *const u8;
+
+    for row in 0..char_height {
+        let byte = unsafe { *font_glyph_ptr.add(row) };
+        for col in 0..char_width {
+            // ビットが1ならピクセルを描画
             if (byte & (0x80 >> col)) != 0 {
                 set_pixel(fb_buffer, x + col as u64, y + row as u64, fb_width, color);
             }
         }
     }
+    serial_print_str("display char: ");
+    // let mut buffer = [0u8; 4]; // UTF-8の1文字は最大4バイト
+    
+    // // 2. バッファにcharを書き込み、&strとして受け取る
+    // let s = ch.encode_utf8(&mut buffer);
+
+    // // 3. &strをシリアルポートに出力
+    // serial_print_str(s);
+    // serial_print_str("\n"); // 改行を追加すると見やすい
 }
 
-
-fn draw_string_simple(
+// 文字列を描画する関数
+fn draw_string(
     fb_buffer: u64,
     fb_width: u64,
     mut x: u64,
@@ -255,72 +277,17 @@ fn draw_string_simple(
     text: &str,
     color: u32
 ) {
+    let char_width = 8; // 8x16フォントなので文字の幅は8px
     for ch in text.chars() {
-        draw_char_simple(fb_buffer, fb_width, x, y, ch, color);
-        x += 8; // 次の文字位置
+        if ch == '\n' {
+            // 改行処理は後で実装
+            continue;
+        }
+        draw_char(fb_buffer, fb_width, x, y, ch, color);
+        x += char_width; // 次の文字位置に移動
     }
+    serial_print_str(text);
 }
-
-
-// fn draw_char(
-//     fb_buffer: u64, 
-//     fb_width: u64, 
-//     x: u64, 
-//     y: u64, 
-//     ch: char, 
-//     color: u32
-// ) {
-//     let char_code = ch as usize;
-//     if char_code >= 256 { return; } // 範囲外チェック
-
-//     const HEADER_SIZE: usize = 4;
-//     let header = unsafe { &*(FONT_8X16.as_ptr() as *const Psf1Header) };
-
-//     if header.magic[0] != 0x36 || header.magic[1] != 0x04 {
-//         return;
-//     }
-
-//     let char_height = header.char_size as usize;
-//     let char_width = 8; // PSF v1は8px幅で固定
-    
-//     let font_char_data_start = FONT_8X16.as_ptr() as usize + HEADER_SIZE;
-//     let char_offset = char_code * char_height;
-    
-//     let font_glyph_ptr = (font_char_data_start + char_offset) as *const u8;
-
-//     for row in 0..char_height {
-//         let byte = unsafe { *font_glyph_ptr.add(row) };
-//         for col in 0..char_width {
-//             // ビットが1ならピクセルを描画
-//             if (byte & (0x80 >> col)) != 0 {
-//                 set_pixel(fb_buffer, x + col as u64, y + row as u64, fb_width, color);
-//             }
-//         }
-//     }
-//     serial_print_str("display char: ");
-// }
-
-// // 文字列を描画する関数
-// fn draw_string(
-//     fb_buffer: u64,
-//     fb_width: u64,
-//     mut x: u64,
-//     y: u64,
-//     text: &str,
-//     color: u32
-// ) {
-//     let char_width = 8; // 8x16フォントなので文字の幅は8px
-//     for ch in text.chars() {
-//         if ch == '\n' {
-//             // 改行処理は後で実装
-//             continue;
-//         }
-//         draw_char(fb_buffer, fb_width, x, y, ch, color);
-//         x += char_width; // 次の文字位置に移動
-//     }
-//     serial_print_str(text);
-// }
-
 
 
 
@@ -377,47 +344,22 @@ pub extern "C" fn _start() -> ! {
 
     // draw_gradient(framebuffer_info.buffer as u64, framebuffer_info.width as u64, framebuffer_info.height as u64);
 
-    // draw_string(
-    //     framebuffer_info.buffer as u64,
-    //     framebuffer_info.width as u64,
-    //     10,  // x座標
-    //     10,  // y座標
-    //     "Hello, World!",
-    //     0xFF_FF_FF_FF  // 白色（ARGB）
-    // );
-
-    // draw_string(
-    //     framebuffer_info.buffer as u64,
-    //     framebuffer_info.width as u64,
-    //     10,
-    //     30,
-    //     "OS Development!",
-    //     0xFF_00_FF_00  // 緑色
-    // );
-
-    draw_string_simple(
+    draw_string(
         framebuffer_info.buffer as u64,
         framebuffer_info.width as u64,
         10,  // x座標
         10,  // y座標
-        "HELLO, WORLD!",
+        "Hello, World!",
         0xFF_FF_FF_FF  // 白色（ARGB）
     );
-    draw_string_simple(
-        framebuffer_info.buffer as u64,
-        framebuffer_info.width as u64,
-        10,  // x座標
-        30,  // y座標
-        "OS DEVELOPMENT!",
-        0xFF_00_FF_00  // 緑色
-    );
 
-    draw_string_simple(
+    draw_string(
         framebuffer_info.buffer as u64,
         framebuffer_info.width as u64,
-        10, 50,
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-        0xFF_FF_FF_FF
+        10,
+        30,
+        "OS Development!",
+        0xFF_00_FF_00  // 緑色
     );
     
     loop {}

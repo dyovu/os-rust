@@ -40,7 +40,6 @@ static ALLOCATOR: uefi::allocator::Allocator = uefi::allocator::Allocator;
 
 #[entry]
 fn main() -> Status {
-    // UEFIの各種サービス（コンソール出力、ファイルシステムなど）を利用可能にするための初期化処理
     uefi::helpers::init().unwrap();
 
     info!("FrameBufferInfo size: {}", core::mem::size_of::<FrameBufferInfo>());
