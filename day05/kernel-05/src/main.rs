@@ -1,7 +1,7 @@
 #![no_main]
 #![no_std]
 
-use core::arch::asm;
+use core::arch::asm; // インラインアセンブリ用のライブラリ
 use core::panic::PanicInfo;
 
 
