@@ -73,11 +73,13 @@ pub struct Elf64_Phdr {
 }
 
 // ================================================================
-// アロケータ
+// グローバル変数
 // ================================================================
 
 #[global_allocator]
 static ALLOCATOR: uefi::allocator::Allocator = uefi::allocator::Allocator;
+
+const PT_LOAD: u32 = 1;
 
 // ================================================================
 // ユーティリティ
@@ -95,7 +97,7 @@ fn halt() -> ! {
 
 fn save_memory_map_to_file(
     image_handle: uefi::Handle,
-    memory_map: &uefi::mem::memory_map::MemoryMapOwned
+    memory_map_data: &uefi::mem::memory_map::MemoryMapOwned
 ) -> uefi::Result<()> {
     let mut file_system = boot::get_image_file_system(image_handle)?;
     let mut root: file::Directory = file_system.open_volume()?;
@@ -109,10 +111,10 @@ fn save_memory_map_to_file(
         .into_regular_file()
         .ok_or(uefi::Status::INVALID_PARAMETER)?;
 
-    let header = format!("Memory Map - {} entries\n\n", memory_map.entries().count());
+    let header = format!("Memory Map - {} entries\n\n", memory_map_data.entries().count());
     let _ = file.write(header.as_bytes());
 
-    for (i, desc) in memory_map.entries().enumerate() {
+    for (i, desc) in memory_map_data.entries().enumerate() {
         let entry = format!(
             "Entry {}: Type={:?}, Start=0x{:016x}, Pages={}, Attr=0x{:x}\n",
             i, desc.ty, desc.phys_start, desc.page_count, desc.att.bits()
@@ -178,9 +180,9 @@ fn load_kernel(image_handle: uefi::Handle) -> Result<Vec<u8>, uefi::Error> {
 }
 
 // 読み込むカーネルのアドレス範囲を計算する
-fn calc_load_address_range(elf_Header:*const Elf64_Ehdr) -> Result<(u64, u64),uefi::Error >{
-    let ehdr_ref = unsafe { &*elf_Header };
-    let phdr =(elf_Header as usize + ehdr_ref.e_phoff as usize) as *const Elf64_Phdr;
+fn calc_load_address_range(elf_header:*const Elf64_Ehdr) -> Result<(u64, u64),uefi::Error >{
+    let ehdr_ref = unsafe { &*elf_header };
+    let phdr =(elf_header as usize + ehdr_ref.e_phoff as usize) as *const Elf64_Phdr;
     // Rustではポインタに対してC言語のように直接 [i] でアクセスできないため、ポインタからスライス（配列）を作る
     let phdr_slice = unsafe { core::slice::from_raw_parts(phdr, ehdr_ref.e_phnum as usize) };
 
@@ -189,7 +191,7 @@ fn calc_load_address_range(elf_Header:*const Elf64_Ehdr) -> Result<(u64, u64),ue
 
     for i in 0..ehdr_ref.e_phnum as usize{
         // PT_LOAD の値は通常 1 らしい
-        if phdr_slice[i].p_type != 1 {continue}
+        if phdr_slice[i].p_type != PT_LOAD {continue}
         first = first.min(phdr_slice[i].p_vaddr);
         last = last.max(phdr_slice[i].p_vaddr + phdr_slice[i].p_memsz);
     }
@@ -197,15 +199,15 @@ fn calc_load_address_range(elf_Header:*const Elf64_Ehdr) -> Result<(u64, u64),ue
 }
 
 // 実際にカーネルのロードセクションをメモリの指定の位置にコピーする
-fn copy_load_segments(elf_Header:*const Elf64_Ehdr) {
-    let ehdr_ref = unsafe { &*elf_Header };
-    let phdr =(elf_Header as usize + ehdr_ref.e_phoff as usize) as *const Elf64_Phdr;
+fn copy_load_segments(elf_header:*const Elf64_Ehdr) {
+    let ehdr_ref = unsafe { &*elf_header };
+    let phdr =(elf_header as usize + ehdr_ref.e_phoff as usize) as *const Elf64_Phdr;
     let phdr_slice = unsafe { core::slice::from_raw_parts(phdr, ehdr_ref.e_phnum as usize) };
 
     for i in 0..ehdr_ref.e_phnum as usize{
         if phdr_slice[i].p_type != 1 {continue}
         let phdr_ref = &phdr_slice[i];
-        let segm_in_file = elf_Header as usize+ phdr_ref.p_offset as usize;
+        let segm_in_file = elf_header as usize+ phdr_ref.p_offset as usize;
         unsafe {
             copy_nonoverlapping(
                 segm_in_file as *const u8, 
@@ -247,7 +249,7 @@ fn main() -> Status {
     
     // メモリマップの取得
     let mt = MemoryType::LOADER_DATA;
-    let memory_map = match memory_map(mt) {
+    let memory_map_data = match memory_map(mt) {
         Ok(map) => {
             info!("Memory map: {} entries", map.entries().count());
             map
@@ -259,7 +261,7 @@ fn main() -> Status {
     };
 
     // メモリマップをファイルに保存（デバッグ用）
-    save_memory_map_to_file(image_handle, &memory_map).unwrap();
+    save_memory_map_to_file(image_handle, &memory_map_data).unwrap();
 
     // メモリマップをRawMemoryDescriptor配列に変換
     let mut memory_entries = [RawMemoryDescriptor {
@@ -271,7 +273,7 @@ fn main() -> Status {
     }; 200];
 
     let mut entry_count = 0;
-    for entry in memory_map.entries() {
+    for entry in memory_map_data.entries() {
         if entry_count >= 200 { break; }
         memory_entries[entry_count] = RawMemoryDescriptor {
             memory_type: entry.ty.0,
@@ -283,29 +285,30 @@ fn main() -> Status {
         entry_count += 1;
     }
 
-    let desc_size = memory_map.meta().desc_size as u64;
+    let desc_size = memory_map_data.meta().desc_size as u64;
     info!("Memory entries: {}, descriptor size: {}", entry_count, desc_size);
 
 
     // カーネルの読み込み
     let mut kernel_data = load_kernel(image_handle).expect("Failed to load kernel");
-    let elf_Header = unsafe {kernel_data.as_mut_ptr() as *const Elf64_Ehdr};
-    let (kernel_first_addr, kernel_last_addr) = calc_load_address_range(elf_Header).expect("Failed calculate address range");
+    let elf_header = kernel_data.as_mut_ptr() as *const Elf64_Ehdr;
+    let (kernel_first_addr, kernel_last_addr) = calc_load_address_range(elf_header).expect("Failed calculate address range");
 
     let page_num = ((kernel_last_addr - kernel_first_addr + 0xfff) / 0x1000 )as usize;
     allocate_pages(boot::AllocateType::Address(kernel_first_addr), MemoryType::LOADER_DATA, page_num).expect("Failed to allocate kernel address");
-    copy_load_segments(elf_Header);
+    copy_load_segments(elf_header);
     
     info!("Kernel: {} bytes, magic={:02x}{:02x}{:02x}{:02x}",
         kernel_data.len(),
         kernel_data[0], kernel_data[1], kernel_data[2], kernel_data[3]
     );
 
+    let ehdr_ref = unsafe { &*elf_header };
+
     // ブートサービス終了
     let _memory_map_final: MemoryMapOwned = unsafe { exit_boot_services(Some(mt)) };
 
-    // 
-    let ehdr_ref = unsafe { &*elf_Header };
+    // kernelのエントリーポイントと関数のシグネチャを指定
     let entry_point = ehdr_ref.e_entry as usize;
     type KernelMain = extern "C" fn(info: &FrameBufferInfo, mmap: &[RawMemoryDescriptor; 200]) -> !;
     unsafe {
