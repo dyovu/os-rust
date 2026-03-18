@@ -215,57 +215,47 @@ fn draw_gradient(fb_buffer: u64, stride: u64, height: u64) {
 
 static FONT_8X16: &[u8] = include_bytes!("../assets/font.psf");
 #[repr(C, packed)]
-struct Psf1Header {
-    magic: [u8; 2],
-    mode: u8,
-    char_size: u8, // 文字の高さ
+struct Psf2Header {
+    magic: u32,
+    version: u32,
+    header_size: u32,
+    flags: u32,
+    length: u32,
+    char_size: u32,
+    height: u32,
+    width: u32,
 }
 
-
 fn draw_char(
-    fb_buffer: u64, 
-    stride: u64, 
-    x: u64, 
-    y: u64, 
-    ch: char, 
+    fb_buffer: u64,
+    stride: u64,
+    x: u64,
+    y: u64,
+    ch: char,
     color: u32
 ) {
     let char_code = ch as usize;
-    if char_code >= 256 { return; } // 範囲外チェック
-
-    const HEADER_SIZE: usize = 4;
-    let header = unsafe { &*(FONT_8X16.as_ptr() as *const Psf1Header) };
-
-    if header.magic[0] != 0x36 || header.magic[1] != 0x04 {
+    if char_code >= 256 { return; }
+    let header = unsafe { &*(FONT_8X16.as_ptr() as *const Psf2Header) };
+    if header.magic != 0x864ab572 {
         return;
     }
-
-    let char_height = header.char_size as usize;
-    let char_width = 8; // PSF v1は8px幅で固定
-    
-    let font_char_data_start = FONT_8X16.as_ptr() as usize + HEADER_SIZE;
-    let char_offset = char_code * char_height;
-    
+    let char_height = header.height as usize;
+    let char_width = header.width as usize;
+    let bytes_per_line = (char_width + 7) / 8;
+    let font_char_data_start = FONT_8X16.as_ptr() as usize + header.header_size as usize;
+    let char_offset = char_code * header.char_size as usize;
     let font_glyph_ptr = (font_char_data_start + char_offset) as *const u8;
-
     for row in 0..char_height {
-        let byte = unsafe { *font_glyph_ptr.add(row) };
         for col in 0..char_width {
-            // ビットが1ならピクセルを描画
-            if (byte & (0x80 >> col)) != 0 {
+            let byte_index = col / 8;
+            let bit_index = 7 - (col % 8);
+            let byte = unsafe { *font_glyph_ptr.add(row * bytes_per_line + byte_index) };
+            if (byte & (1 << bit_index)) != 0 {
                 set_pixel(fb_buffer, x + col as u64, y + row as u64, stride, color);
             }
         }
     }
-    serial_print_str("display char: ");
-    // let mut buffer = [0u8; 4]; // UTF-8の1文字は最大4バイト
-    
-    // // 2. バッファにcharを書き込み、&strとして受け取る
-    // let s = ch.encode_utf8(&mut buffer);
-
-    // // 3. &strをシリアルポートに出力
-    // serial_print_str(s);
-    // serial_print_str("\n"); // 改行を追加すると見やすい
 }
 
 // 文字列を描画する関数
@@ -298,17 +288,6 @@ pub extern "sysv64" fn _start(
     mmap_ptr: *const RawMemoryDescriptor,
     mmap_len: usize,
 ) -> ! {
-
-    // ポインタのアドレスを指定してブートローダーから引数を受け取る
-    // let (mem_ptr, mem_len, desc_size, framebuffer_info_ptr) = unsafe {
-    //     (
-    //         core::ptr::read(args_address.offset(0)), // mem_ptr
-    //         core::ptr::read(args_address.offset(1)), // mem_len
-    //         core::ptr::read(args_address.offset(2)), // desc_size
-    //         core::ptr::read(args_address.offset(3)), // framebuffer_info_ptr
-    //     )
-    // };
-
     serial_print_str("\n");
     serial_print_str("=====================================\n");
     serial_print_str("    KERNEL BOOT INFORMATION\n");
@@ -334,9 +313,9 @@ pub extern "sysv64" fn _start(
     print_decimal(framebuffer_info.height as u64);
     serial_print_str("\n");
 
-    fill_screen_blue(framebuffer_info.buffer as u64, framebuffer_info.stride as u64, framebuffer_info.height as u64);
+    // fill_screen_blue(framebuffer_info.buffer as u64, framebuffer_info.stride as u64, framebuffer_info.height as u64);
 
-    // draw_gradient(framebuffer_info.buffer as u64, framebuffer_info.stride as u64, framebuffer_info.height as u64);
+    draw_gradient(framebuffer_info.buffer as u64, framebuffer_info.stride as u64, framebuffer_info.height as u64);
 
     draw_string(
         framebuffer_info.buffer as u64,
