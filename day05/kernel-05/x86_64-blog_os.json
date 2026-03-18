@@ -14,4 +14,3 @@
     "features": "-mmx,-sse,+soft-float",
     "rustc-abi": "x86-softfloat"
 }
-
