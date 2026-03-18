@@ -205,7 +205,7 @@ fn copy_load_segments(elf_header:*const Elf64_Ehdr) {
     let phdr_slice = unsafe { core::slice::from_raw_parts(phdr, ehdr_ref.e_phnum as usize) };
 
     for i in 0..ehdr_ref.e_phnum as usize{
-        if phdr_slice[i].p_type != 1 {continue}
+        if phdr_slice[i].p_type != PT_LOAD {continue}
         let phdr_ref = &phdr_slice[i];
         let segm_in_file = elf_header as usize+ phdr_ref.p_offset as usize;
         unsafe {
@@ -310,11 +310,11 @@ fn main() -> Status {
 
     // kernelのエントリーポイントと関数のシグネチャを指定
     let entry_point = ehdr_ref.e_entry as usize;
-    type KernelMain = extern "C" fn(info: &FrameBufferInfo, mmap: &[RawMemoryDescriptor; 200]) -> !;
+    type KernelMain = extern "C" fn(info: &FrameBufferInfo, mmap_ptr: *const RawMemoryDescriptor, mmap_len: usize) -> !;
     unsafe {
         let kernel_main: KernelMain = core::mem::transmute(entry_point);
 
-        kernel_main(&framebuffer_info, &memory_entries);
+        kernel_main(&framebuffer_info, memory_entries.as_ptr(), entry_count);
     }
     
 }
