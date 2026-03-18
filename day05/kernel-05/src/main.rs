@@ -11,7 +11,7 @@ struct FrameBufferInfo {
     buffer_size: usize,
     width: usize,
     height: usize,
-    pixels_per_scan_line: usize,
+    stride: usize,
     pixel_format: u32, // PixelFormat情報
 }
 
@@ -174,18 +174,18 @@ fn print_pixel_format(format: u32) {
 
 
 // 与えられたフレームバッファのアドレスに与えられた色でピクセルを設定
-fn set_pixel(fb_buffer: u64, x: u64, y: u64, width: u64, color: u32) {
+fn set_pixel(fb_buffer: u64, x: u64, y: u64, stride: u64, color: u32) {
     let framebuffer = fb_buffer as *mut u32;
-    let offset = (y * width + x) as isize;
+    let offset = (y * stride + x) as isize;
     unsafe {
         core::ptr::write(framebuffer.offset(offset), color);
     }
 }
 
 // ブルスク
-fn fill_screen_blue(fb_buffer: u64, width: u64, height: u64) {
+fn fill_screen_blue(fb_buffer: u64, stride: u64, height: u64) {
     let framebuffer = fb_buffer as *mut u32;
-    let total_pixels = (width * height) as isize;
+    let total_pixels = (stride * height) as isize;
     
     unsafe {
         for i in 0..total_pixels {
@@ -196,14 +196,14 @@ fn fill_screen_blue(fb_buffer: u64, width: u64, height: u64) {
     }
 }
 // グラデーションを描画する関数
-fn draw_gradient(fb_buffer: u64, width: u64, height: u64) {
+fn draw_gradient(fb_buffer: u64, stride: u64, height: u64) {
     for y in 0..height {
-        for x in 0..width {
-            let red = (x * 255 / width) as u32;
+        for x in 0..stride {
+            let red = (x * 255 / stride) as u32;
             let green = (y * 255 / height) as u32;
             let blue = 128u32;
             let color = (red << 16) | (green << 8) | blue; // BGR形式
-            set_pixel(fb_buffer, x, y, width, color);
+            set_pixel(fb_buffer, x, y, stride, color);
         }
     }
 }
@@ -224,7 +224,7 @@ struct Psf1Header {
 
 fn draw_char(
     fb_buffer: u64, 
-    fb_width: u64, 
+    stride: u64, 
     x: u64, 
     y: u64, 
     ch: char, 
@@ -253,7 +253,7 @@ fn draw_char(
         for col in 0..char_width {
             // ビットが1ならピクセルを描画
             if (byte & (0x80 >> col)) != 0 {
-                set_pixel(fb_buffer, x + col as u64, y + row as u64, fb_width, color);
+                set_pixel(fb_buffer, x + col as u64, y + row as u64, stride, color);
             }
         }
     }
@@ -271,7 +271,7 @@ fn draw_char(
 // 文字列を描画する関数
 fn draw_string(
     fb_buffer: u64,
-    fb_width: u64,
+    stride: u64,
     mut x: u64,
     y: u64,
     text: &str,
@@ -283,7 +283,7 @@ fn draw_string(
             // 改行処理は後で実装
             continue;
         }
-        draw_char(fb_buffer, fb_width, x, y, ch, color);
+        draw_char(fb_buffer, stride, x, y, ch, color);
         x += char_width; // 次の文字位置に移動
     }
     serial_print_str(text);
@@ -293,23 +293,21 @@ fn draw_string(
 
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text._start")]
-pub extern "C" fn _start() -> ! {
+pub extern "C" fn _start(
+    framebuffer_info: &FrameBufferInfo,
+    mmap_ptr: *const RawMemoryDescriptor,
+    mmap_len: usize,
+) -> ! {
 
     // ポインタのアドレスを指定してブートローダーから引数を受け取る
-    let args_address = 0x80000 as *const u64;
-    let (mem_ptr, mem_len, desc_size, framebuffer_info_ptr) = unsafe {
-        (
-            core::ptr::read(args_address.offset(0)), // mem_ptr
-            core::ptr::read(args_address.offset(1)), // mem_len
-            core::ptr::read(args_address.offset(2)), // desc_size
-            core::ptr::read(args_address.offset(3)), // framebuffer_info_ptr
-        )
-    };
-
-    // FrameBufferInfo構造体を読み取り
-    let framebuffer_info = unsafe {
-        core::ptr::read(framebuffer_info_ptr as *const FrameBufferInfo)
-    };
+    // let (mem_ptr, mem_len, desc_size, framebuffer_info_ptr) = unsafe {
+    //     (
+    //         core::ptr::read(args_address.offset(0)), // mem_ptr
+    //         core::ptr::read(args_address.offset(1)), // mem_len
+    //         core::ptr::read(args_address.offset(2)), // desc_size
+    //         core::ptr::read(args_address.offset(3)), // framebuffer_info_ptr
+    //     )
+    // };
 
     serial_print_str("\n");
     serial_print_str("=====================================\n");
@@ -319,7 +317,7 @@ pub extern "C" fn _start() -> ! {
     serial_print_str("Hello, world from kernel\n");
 
     serial_print_str("Memory entries pointer: 0x");
-    print_hex(mem_ptr);
+    print_hex(mmap_ptr as u64);
     serial_print_str("\n");
 
     serial_print_str("Framebuffer pointer: 0x");
@@ -327,11 +325,7 @@ pub extern "C" fn _start() -> ! {
     serial_print_str("\n");
 
     serial_print_str("Memory entries: ");
-    print_decimal(mem_len);
-    serial_print_str("\n");
-
-    serial_print_str("Descriptor size: ");
-    print_decimal(desc_size);
+    print_decimal(mmap_len as u64);
     serial_print_str("\n");
 
     serial_print_str("Resolution: ");
@@ -340,13 +334,13 @@ pub extern "C" fn _start() -> ! {
     print_decimal(framebuffer_info.height as u64);
     serial_print_str("\n");
 
-    fill_screen_blue(framebuffer_info.buffer as u64, framebuffer_info.width as u64, framebuffer_info.height as u64);
+    fill_screen_blue(framebuffer_info.buffer as u64, framebuffer_info.stride as u64, framebuffer_info.height as u64);
 
-    // draw_gradient(framebuffer_info.buffer as u64, framebuffer_info.width as u64, framebuffer_info.height as u64);
+    // draw_gradient(framebuffer_info.buffer as u64, framebuffer_info.stride as u64, framebuffer_info.height as u64);
 
     draw_string(
         framebuffer_info.buffer as u64,
-        framebuffer_info.width as u64,
+        framebuffer_info.stride as u64,
         10,  // x座標
         10,  // y座標
         "Hello, World!",
@@ -355,7 +349,7 @@ pub extern "C" fn _start() -> ! {
 
     draw_string(
         framebuffer_info.buffer as u64,
-        framebuffer_info.width as u64,
+        framebuffer_info.stride as u64,
         10,
         30,
         "OS Development!",

@@ -25,7 +25,7 @@ struct FrameBufferInfo {
     buffer_size: usize,
     width: usize,
     height: usize,
-    pixels_per_scan_line: usize,
+    stride: usize,
     pixel_format: u32,
 }
 
@@ -142,7 +142,7 @@ fn get_framebuffer_info() -> Result<FrameBufferInfo, uefi::Error> {
         buffer_size: framebuffer.size(),
         width: mode_info.resolution().0,
         height: mode_info.resolution().1,
-        pixels_per_scan_line: mode_info.stride(),
+        stride: mode_info.stride(),
         pixel_format: match mode_info.pixel_format() {
             uefi::proto::console::gop::PixelFormat::Rgb => 0,
             uefi::proto::console::gop::PixelFormat::Bgr => 1,
