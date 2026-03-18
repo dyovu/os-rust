@@ -293,7 +293,7 @@ fn draw_string(
 
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text._start")]
-pub extern "C" fn _start(
+pub extern "sysv64" fn _start(
     framebuffer_info: &FrameBufferInfo,
     mmap_ptr: *const RawMemoryDescriptor,
     mmap_len: usize,

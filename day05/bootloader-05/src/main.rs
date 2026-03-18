@@ -160,7 +160,7 @@ fn load_kernel(image_handle: uefi::Handle) -> Result<Vec<u8>, uefi::Error> {
     let mut root: file::Directory = file_system.open_volume()?;
 
     let mut kernel_file = root
-        .open(cstr16!("kernel.elf"), FileMode::Read, FileAttribute::empty())
+        .open(cstr16!("kernel"), FileMode::Read, FileAttribute::empty())
         .expect("Failed to open kernel file")
         .into_regular_file()
         .expect("Kernel file is not a regular file");
@@ -310,7 +310,7 @@ fn main() -> Status {
 
     // kernelのエントリーポイントと関数のシグネチャを指定
     let entry_point = ehdr_ref.e_entry as usize;
-    type KernelMain = extern "C" fn(info: &FrameBufferInfo, mmap_ptr: *const RawMemoryDescriptor, mmap_len: usize) -> !;
+    type KernelMain = extern "sysv64" fn(info: &FrameBufferInfo, mmap_ptr: *const RawMemoryDescriptor, mmap_len: usize) -> !;
     unsafe {
         let kernel_main: KernelMain = core::mem::transmute(entry_point);
 
