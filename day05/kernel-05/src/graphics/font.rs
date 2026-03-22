@@ -20,7 +20,7 @@ struct Psf2Header {
 }
 
 // ASCII (0–255) のみ対応
-fn draw_char(fb_buffer: u64, stride: u64, x: u64, y: u64, ch: char, color: u32) {
+pub fn draw_char(fb_buffer: u64, stride: u64, x: u64, y: u64, ch: char, color: u32) {
     let char_code = ch as usize;
     if char_code >= 256 { return; }
 

@@ -10,6 +10,7 @@ use serial::{serial_print_str, print_decimal, print_hex};
 mod graphics;
 use graphics::framebuffer::{FrameBufferInfo, fill_screen_blue, draw_gradient};
 use graphics::font::draw_string;
+use graphics::console;
 
 
 // ================================================================
