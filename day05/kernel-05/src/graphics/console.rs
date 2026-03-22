@@ -65,8 +65,8 @@ impl Console{
                     )
                 }
 
-                for c in self.buffer[i]{
-                    draw_char(fb_buffer, stride, 8*self.cursor_column as u64, 16*self.cursor_row as u64, c, color);
+                for (col, c) in self.buffer[i].iter().enumerate() {
+                    draw_char(fb_buffer, stride, (8 * col) as u64, (16 * i) as u64, *c, color);
                 }
             }
 
