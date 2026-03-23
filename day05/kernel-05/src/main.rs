@@ -2,13 +2,13 @@
 #![no_std]
 
 use core::panic::PanicInfo;
+use core::fmt::Write;
 use spin::Mutex;
 
 mod serial;
 use serial::{serial_print_str, print_decimal, print_hex};
 mod graphics;
-use graphics::framebuffer::{FrameBufferInfo, fill_screen_blue, draw_gradient};
-use graphics::font::draw_string;
+use graphics::framebuffer::{FrameBufferInfo, PixelWriter, PixelColor};
 use graphics::console::Console;
 
 
@@ -41,10 +41,17 @@ fn panic(_info: &PanicInfo) -> ! {
 
 static CONSOLE: Mutex<Option<Console>> = Mutex::new(None);
 
-pub fn printk(text: &str, fb: u64, stride: u64, color: u32) {
+pub fn printk(args: core::fmt::Arguments) {
     if let Some(c) = CONSOLE.lock().as_mut() {
-        c.put_string(text, fb, stride, color);
+        c.write_fmt(args).ok();
     }
+}
+
+#[macro_export]
+macro_rules! printk {
+    ($($arg:tt)*) => {
+        $crate::printk(format_args!($($arg)*))
+    };
 }
 
 // ================================================================
@@ -58,18 +65,19 @@ pub extern "sysv64" fn _start(
     mmap_ptr: *const RawMemoryDescriptor,
     mmap_len: usize,
 ) -> ! {
-    fill_screen_blue(
-        framebuffer_info.buffer as u64,
-        framebuffer_info.stride as u64,
-        framebuffer_info.height as u64,
-    );
+    let writer = PixelWriter::new(framebuffer_info);
 
-    *CONSOLE.lock() = Some(Console::new());
+    writer.fill(PixelColor { r: 0, g: 0, b: 255 }); // 青で塗りつぶし
 
-    for _ in 0..27 {
-        printk("printk: \n", framebuffer_info.buffer as u64, framebuffer_info.stride as u64, 0xFF_00_FF_00,);
+    *CONSOLE.lock() = Some(Console::new(
+        writer,
+        PixelColor {r: 0, g: 255, b: 0},  // fg: 緑
+        PixelColor {r: 0, g: 0, b: 255}, // bg: 青
+    ));
+
+    for i in 0..27 {
+        printk!("printk: {}\n", i);
     }
-
 
     // draw_string(
     //     framebuffer_info.buffer as u64,
