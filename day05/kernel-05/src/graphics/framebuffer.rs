@@ -50,17 +50,19 @@ impl PixelWriter {
 
     // color は BGR 32bit フォーマット 基本的に(0x00_RR_GG_BB)
     pub fn write(&self, x: u64, y: u64, color: PixelColor) {
-        let col = match self.format {
+        let c = match self.format {
+            // byte[0]=R, byte[1]=G, byte[2]=B
             PixelFormat::Rgb => {
-                ((color.r as u32) << 16) | ((color.g as u32) << 8) | (color.b as u32)
-            }
-            PixelFormat::Bgr => {
                 ((color.b as u32) << 16) | ((color.g as u32) << 8) | (color.r as u32)
+            }
+            // byte[0]=B, byte[1]=G, byte[2]=R
+            PixelFormat::Bgr => {
+                ((color.r as u32) << 16) | ((color.g as u32) << 8) | (color.b as u32)
             }
         };
         let framebuffer = self.fb_buffer as *mut u32;
         let offset = (y * self.stride + x) as isize;
-        unsafe { core::ptr::write(framebuffer.offset(offset), col); }
+        unsafe { core::ptr::write(framebuffer.offset(offset), c); }
     }
 
     pub fn fill(&self, color: PixelColor) {
