@@ -17,7 +17,9 @@ use graphics::mouse_cursor::{MOUSE_CURSOR_WIDTH, MOUSE_CURSOR_HEIGHT, MOUSE_CURS
 // ================================================================
 const BLACK:PixelColor = PixelColor{r:0, g:0, b:0};
 const WHITE:PixelColor = PixelColor{r:255, g:255, b:255};
-
+const RED:PixelColor =  PixelColor{r:255, g:0, b:0};
+const GREEN:PixelColor =  PixelColor{r:0, g:255, b:0};
+const BLUE:PixelColor =  PixelColor{r:0, g:0, b:255};
 
 
 // ================================================================
@@ -42,6 +44,12 @@ pub struct RawMemoryDescriptor {
 fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }
+
+// ================================================================
+// グローバルのPixelWriter
+// ================================================================
+
+static PIXEL_WRITER: Mutex<Option<PixelWriter>> = Mutex::new(None);
 
 // ================================================================
 // コンソール出力のためのグローバル変数
@@ -73,30 +81,36 @@ pub extern "sysv64" fn _start(
     mmap_ptr: *const RawMemoryDescriptor,
     mmap_len: usize,
 ) -> ! {
-    let pixel_writer = PixelWriter::new(framebuffer_info);
 
-    pixel_writer.fill(PixelColor { r: 0, g: 0, b: 255 }); // 青で塗りつぶし
+    *PIXEL_WRITER.lock() = Some(PixelWriter::new(framebuffer_info));
+
+    // 青で塗りつぶし
+    if let Some(w)  = PIXEL_WRITER.lock().as_ref(){
+        w.fill(BLUE); 
+    }
 
     *CONSOLE.lock() = Some(Console::new(
-        pixel_writer,
-        PixelColor {r: 0, g: 255, b: 0},  // fg: 緑
-        PixelColor {r: 0, g: 0, b: 255}, // bg: 青
+        &PIXEL_WRITER,
+        GREEN,  // fg: 緑
+        BLUE, // bg: 青
     ));
 
     for i in 0..27 {
         printk!("printk: {}\n", i);
     }
 
-    for dx in 0..MOUSE_CURSOR_HEIGHT{
-        for dy in 0..MOUSE_CURSOR_WIDTH{
-            match MOUSE_CURSOR_SHAPE[dx].as_bytes()[dy]{
-                b'@' =>  {
-                    pixel_writer.write(200+dx as u64, 100+dy as u64, BLACK);
+    if let Some(w) = PIXEL_WRITER.lock().as_ref(){
+        for dy in 0..MOUSE_CURSOR_HEIGHT{
+            for dx in 0..MOUSE_CURSOR_WIDTH{
+                match MOUSE_CURSOR_SHAPE[dy].as_bytes()[dx]{
+                    b'@' =>  {
+                        w.write(200+dx as u64, 100+dy as u64, BLACK);
+                    }
+                    b'.' => {
+                        w.write(200+dx as u64, 100+dy as u64, WHITE);
+                    }
+                    _ => {}
                 }
-                b'.' => {
-                    pixel_writer.write(200+dx as u64, 100+dy as u64, WHITE);
-                }
-                _ => {}
             }
         }
     }

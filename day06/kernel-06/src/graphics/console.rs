@@ -3,6 +3,7 @@
 // ================================================================
 use core::ptr::{copy_nonoverlapping, write_bytes};
 use core::fmt;
+use spin::Mutex;
 
 use crate::graphics::font::draw_char;
 use crate::graphics::framebuffer::{PixelWriter, PixelColor};
@@ -12,7 +13,7 @@ const COLUMNS: usize = 80;
 
 #[repr(C)]
 pub struct Console {
-    writer: PixelWriter,
+    writer: &'static Mutex<Option<PixelWriter>>,
     fg_color: PixelColor,
     bg_color: PixelColor,
     buffer: [[char; COLUMNS + 1]; ROWS],
@@ -21,7 +22,7 @@ pub struct Console {
 }
 
 impl Console {
-    pub fn new(writer: PixelWriter, fg_color: PixelColor, bg_color: PixelColor) -> Self {
+    pub fn new(writer: &'static Mutex<Option<PixelWriter>>, fg_color: PixelColor, bg_color: PixelColor) -> Self {
         Self {
             writer,
             fg_color,
@@ -37,7 +38,9 @@ impl Console {
             if c == '\n' {
                 self.new_line();
             } else if self.cursor_column < COLUMNS {
-                draw_char(&self.writer, 8 * self.cursor_column as u64, 16 * self.cursor_row as u64, c, self.fg_color);
+                if let Some(w) = self.writer.lock().as_ref() {
+                    draw_char(w, 8 * self.cursor_column as u64, 16 * self.cursor_row as u64, c, self.fg_color);
+                }
                 self.buffer[self.cursor_row][self.cursor_column] = c;
                 self.cursor_column += 1;
             }
@@ -49,31 +52,28 @@ impl Console {
         if self.cursor_row < ROWS - 1 {
             self.cursor_row += 1;
         } else {
-            for y in 0..16 * ROWS {
-                for x in 0..8 * COLUMNS {
-                    self.writer.write(x as u64, y as u64, self.bg_color);
+            let guard = self.writer.lock();
+            if let Some(w) = guard.as_ref() {
+                for y in 0..16 * ROWS {
+                    for x in 0..8 * COLUMNS {
+                        w.write(x as u64, y as u64, self.bg_color);
+                    }
+                }
+
+                for i in 0..ROWS - 1 {
+                    unsafe {
+                        copy_nonoverlapping(
+                            self.buffer[i + 1].as_ptr(),
+                            self.buffer[i].as_mut_ptr(),
+                            COLUMNS + 1,
+                        );
+                    }
+                    for (col, c) in self.buffer[i].iter().enumerate() {
+                        draw_char(w, (8 * col) as u64, (16 * i) as u64, *c, self.fg_color);
+                    }
                 }
             }
-
-            // 配列の要素を指定した分シフトするメソッド
-            // 基本的にこれを使えばいいけど、memcopyとmemsetのような形で実装するために
-            // 生ポインタで実装する
-            //
-            // self.buffer.rotate_left(1);
-            //
-
-            for i in 0..ROWS - 1 {
-                unsafe {
-                    copy_nonoverlapping(
-                        self.buffer[i + 1].as_ptr(),
-                        self.buffer[i].as_mut_ptr(),
-                        COLUMNS + 1,
-                    );
-                }
-                for (col, c) in self.buffer[i].iter().enumerate() {
-                    draw_char(&self.writer, (8 * col) as u64, (16 * i) as u64, *c, self.fg_color);
-                }
-            }
+            // guardがここでドロップされロック解放
 
             unsafe {
                 write_bytes(
