@@ -10,6 +10,14 @@ use serial::{serial_print_str, print_decimal, print_hex};
 mod graphics;
 use graphics::framebuffer::{FrameBufferInfo, PixelWriter, PixelColor};
 use graphics::console::Console;
+use graphics::mouse_cursor::{MOUSE_CURSOR_WIDTH, MOUSE_CURSOR_HEIGHT, MOUSE_CURSOR_SHAPE};
+
+// ================================================================
+// 色
+// ================================================================
+const BLACK:PixelColor = PixelColor{r:0, g:0, b:0};
+const WHITE:PixelColor = PixelColor{r:255, g:255, b:255};
+
 
 
 // ================================================================
@@ -65,12 +73,12 @@ pub extern "sysv64" fn _start(
     mmap_ptr: *const RawMemoryDescriptor,
     mmap_len: usize,
 ) -> ! {
-    let writer = PixelWriter::new(framebuffer_info);
+    let pixel_writer = PixelWriter::new(framebuffer_info);
 
-    writer.fill(PixelColor { r: 0, g: 0, b: 255 }); // 青で塗りつぶし
+    pixel_writer.fill(PixelColor { r: 0, g: 0, b: 255 }); // 青で塗りつぶし
 
     *CONSOLE.lock() = Some(Console::new(
-        writer,
+        pixel_writer,
         PixelColor {r: 0, g: 255, b: 0},  // fg: 緑
         PixelColor {r: 0, g: 0, b: 255}, // bg: 青
     ));
@@ -79,20 +87,19 @@ pub extern "sysv64" fn _start(
         printk!("printk: {}\n", i);
     }
 
-    // draw_string(
-    //     framebuffer_info.buffer as u64,
-    //     framebuffer_info.stride as u64,
-    //     10, 10,
-    //     "Hello, World!",
-    //     0xFF_FF_FF_FF, // 白
-    // );
-    // draw_string(
-    //     framebuffer_info.buffer as u64,
-    //     framebuffer_info.stride as u64,
-    //     10, 30,
-    //     "OS Development!",
-    //     0xFF_00_FF_00, // 緑
-    // );
+    for dx in 0..MOUSE_CURSOR_HEIGHT{
+        for dy in 0..MOUSE_CURSOR_WIDTH{
+            match MOUSE_CURSOR_SHAPE[dx].as_bytes()[dy]{
+                b'@' =>  {
+                    pixel_writer.write(200+dx as u64, 100+dy as u64, BLACK);
+                }
+                b'.' => {
+                    pixel_writer.write(200+dx as u64, 100+dy as u64, WHITE);
+                }
+                _ => {}
+            }
+        }
+    }
 
     loop {}
 }
