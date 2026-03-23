@@ -12,31 +12,61 @@ pub struct FrameBufferInfo {
     pub pixel_format: u32,
 }
 
-// color は BGR 32bit フォーマット (0x00_RR_GG_BB)
-pub fn set_pixel(fb_buffer: u64, x: u64, y: u64, stride: u64, color: u32) {
-    let framebuffer = fb_buffer as *mut u32;
-    let offset = (y * stride + x) as isize;
-    unsafe { core::ptr::write(framebuffer.offset(offset), color); }
+#[derive(Debug, Copy, Clone)]
+pub struct PixelColor {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
 }
 
-pub fn fill_screen_blue(fb_buffer: u64, stride: u64, height: u64) {
-    let framebuffer = fb_buffer as *mut u32;
-    let total_pixels = (stride * height) as isize;
-    unsafe {
-        for i in 0..total_pixels {
-            core::ptr::write(framebuffer.offset(i), 0x000000FF); // 青 (BGR)
+#[derive(Debug, Copy, Clone)]
+pub enum PixelFormat {
+    Rgb,
+    Bgr,
+}
+
+pub struct PixelWriter {
+    pub fb_buffer: u64,
+    pub stride: u64,
+    pub width: u64,
+    pub height: u64,
+    pub format: PixelFormat,
+}
+
+impl PixelWriter {
+    pub fn new(info: &FrameBufferInfo) -> Self {
+        let format = match info.pixel_format {
+            0 => PixelFormat::Rgb,
+            _ => PixelFormat::Bgr,
+        };
+        Self {
+            fb_buffer: info.buffer as u64,
+            stride: info.stride as u64,
+            width: info.width as u64,
+            height: info.height as u64,
+            format,
         }
     }
-}
 
-pub fn draw_gradient(fb_buffer: u64, stride: u64, height: u64) {
-    for y in 0..height {
-        for x in 0..stride {
-            let red   = (x * 255 / stride) as u32;
-            let green = (y * 255 / height) as u32;
-            let blue  = 128u32;
-            let color = (red << 16) | (green << 8) | blue;
-            set_pixel(fb_buffer, x, y, stride, color);
+    pub fn write(&self, x: u64, y: u64, color: PixelColor) {
+        let col = match self.format {
+            PixelFormat::Rgb => {
+                ((color.r as u32) << 16) | ((color.g as u32) << 8) | (color.b as u32)
+            }
+            PixelFormat::Bgr => {
+                ((color.b as u32) << 16) | ((color.g as u32) << 8) | (color.r as u32)
+            }
+        };
+        let framebuffer = self.fb_buffer as *mut u32;
+        let offset = (y * self.stride + x) as isize;
+        unsafe { core::ptr::write(framebuffer.offset(offset), col); }
+    }
+
+    pub fn fill(&self, color: PixelColor) {
+        for y in 0..self.height {
+            for x in 0..self.width {
+                self.write(x, y, color);
+            }
         }
     }
 }
