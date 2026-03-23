@@ -2,3 +2,5 @@
 .DS_Store
 
 **/target/
+
+**/**/memory_map.txt
