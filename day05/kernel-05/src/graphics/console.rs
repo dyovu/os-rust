@@ -8,6 +8,7 @@ use crate::graphics::framebuffer::set_pixel;
 
 const ROWS: usize = 25;
 const COLUMNS: usize = 80;
+
 #[repr(C)]
 pub struct Console{
     buffer: [[char; COLUMNS + 1]; ROWS],
@@ -43,7 +44,7 @@ impl Console{
         }else{
             for y in 0..16 * ROWS {
                 for x in 0..8 * COLUMNS {
-                    set_pixel(fb_buffer, x as u64, y as u64, stride, color);
+                    set_pixel(fb_buffer, x as u64, y as u64, stride, 0x00_00_00_FF);
                 }
             }
 
