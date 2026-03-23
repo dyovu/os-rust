@@ -2,7 +2,7 @@
 // フォント・テキスト描画
 // ================================================================
 
-use crate::graphics::framebuffer::set_pixel;
+use crate::graphics::framebuffer::{PixelWriter, PixelColor};
 
 static FONT_8X16: &[u8] = include_bytes!("../../assets/font.psf");
 
@@ -20,7 +20,7 @@ struct Psf2Header {
 }
 
 // ASCII (0–255) のみ対応
-pub fn draw_char(fb_buffer: u64, stride: u64, x: u64, y: u64, ch: char, color: u32) {
+pub fn draw_char(writer: &PixelWriter, x: u64, y: u64, ch: char, color: PixelColor) {
     let char_code = ch as usize;
     if char_code >= 256 { return; }
 
@@ -41,18 +41,18 @@ pub fn draw_char(fb_buffer: u64, stride: u64, x: u64, y: u64, ch: char, color: u
             let bit_index  = 7 - (col % 8); // MSBが左端
             let byte = unsafe { *glyph_ptr.add(row * bytes_per_line + byte_index) };
             if (byte & (1 << bit_index)) != 0 {
-                set_pixel(fb_buffer, x + col as u64, y + row as u64, stride, color);
+                writer.write(x + col as u64, y + row as u64, color);
             }
         }
     }
 }
 
 // 現在は改行非対応（'\n' は無視）
-pub fn draw_string(fb_buffer: u64, stride: u64, mut x: u64, y: u64, text: &str, color: u32) {
+pub fn draw_string(writer: &PixelWriter, mut x: u64, y: u64, text: &str, color: PixelColor) {
     const CHAR_WIDTH: u64 = 8;
     for ch in text.chars() {
         if ch == '\n' { continue; } // TODO: 改行処理
-        draw_char(fb_buffer, stride, x, y, ch, color);
+        draw_char(writer, x, y, ch, color);
         x += CHAR_WIDTH;
     }
 }

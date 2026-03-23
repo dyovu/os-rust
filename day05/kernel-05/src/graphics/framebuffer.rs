@@ -48,6 +48,7 @@ impl PixelWriter {
         }
     }
 
+    // color は BGR 32bit フォーマット 基本的に(0x00_RR_GG_BB)
     pub fn write(&self, x: u64, y: u64, color: PixelColor) {
         let col = match self.format {
             PixelFormat::Rgb => {
