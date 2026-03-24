@@ -3,6 +3,7 @@
 
 use core::panic::PanicInfo;
 use core::fmt::Write;
+use core::ops::AddAssign;
 use spin::Mutex;
 
 mod serial;
@@ -51,6 +52,101 @@ fn panic(_info: &PanicInfo) -> ! {
 
 static PIXEL_WRITER: Mutex<Option<PixelWriter>> = Mutex::new(None);
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct Vector2D<T> {
+    pub x: T,
+    pub y: T,
+}
+
+impl<T> Vector2D<T> {
+    pub const fn new(x: T, y: T) -> Self {
+        Self { x, y }
+    }
+}
+
+impl<T, U> AddAssign<Vector2D<U>> for Vector2D<T>
+where
+    T: AddAssign<U>,
+{
+    fn add_assign(&mut self, rhs: Vector2D<U>) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+    }
+}
+
+pub fn fill_rectangle(
+    writer: &Mutex<Option<PixelWriter>>,
+    pos: Vector2D<u64>,
+    size: Vector2D<u64>,
+    col: PixelColor,
+) {
+    if let Some(w) = writer.lock().as_ref(){
+        for dy in 0..size.y {
+            for dx in 0..size.x {
+                w.write(pos.x + dx, pos.y + dy, col);
+            }
+        }
+    }
+}
+
+pub fn draw_rectangle(
+    writer: &Mutex<Option<PixelWriter>>,
+    pos: Vector2D<u64>,
+    size: Vector2D<u64>,
+    col: PixelColor,
+) {
+    if let Some(w) = writer.lock().as_ref(){
+        for dx in 0..size.x {
+            w.write(pos.x + dx, pos.y, col);
+            w.write(pos.x + dx, pos.y + size.y - 1, col);
+        }
+        for dy in 1..(size.y - 1) {
+            w.write(pos.x, pos.y + dy, col);
+            w.write(pos.x + size.x - 1, pos.y + dy, col);
+        }
+    }
+}
+
+pub fn draw_desktop(writer: &Mutex<Option<PixelWriter>>, frame_width: u64, frame_height: u64) {
+    let bg_color = PixelColor { r: 30, g: 30, b: 46 };
+    fill_rectangle(
+        writer,
+        Vector2D::new(0, 0),
+        Vector2D::new(frame_width, frame_height),
+        bg_color,
+    );
+
+    let topbar_color = PixelColor { r: 17, g: 17, b: 27 };
+    fill_rectangle(
+        writer,
+        Vector2D::new(0, 0),
+        Vector2D::new(frame_width, 30),
+        topbar_color,
+    );
+
+    let dock_width: u64 = 300;
+    let dock_height: u64 = 50;
+    let dock_x = (frame_width - dock_width) / 2;
+    let dock_y = frame_height - dock_height - 10;
+
+    let dock_bg_color = PixelColor { r: 69, g: 71, b: 90 };
+    fill_rectangle(
+        writer,
+        Vector2D::new(dock_x, dock_y),
+        Vector2D::new(dock_width, dock_height),
+        dock_bg_color,
+    );
+
+    let dock_border_color = PixelColor { r: 147, g: 153, b: 178 };
+    draw_rectangle(
+        writer,
+        Vector2D::new(dock_x, dock_y),
+        Vector2D::new(dock_width, dock_height),
+        dock_border_color,
+    );
+}
+
+
 // ================================================================
 // コンソール出力のためのグローバル変数
 // ================================================================
@@ -95,6 +191,8 @@ pub extern "sysv64" fn _start(
         BLUE, // bg: 青
     ));
 
+    draw_desktop(&PIXEL_WRITER, framebuffer_info.width as u64, framebuffer_info.height as u64);
+
     for i in 0..27 {
         printk!("printk: {}\n", i);
     }
@@ -114,6 +212,8 @@ pub extern "sysv64" fn _start(
             }
         }
     }
+
+    
 
     loop {}
 }
