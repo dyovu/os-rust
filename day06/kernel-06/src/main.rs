@@ -12,6 +12,7 @@ mod graphics;
 use graphics::framebuffer::{FrameBufferInfo, PixelWriter, PixelColor};
 use graphics::console::Console;
 use graphics::mouse_cursor::{MOUSE_CURSOR_WIDTH, MOUSE_CURSOR_HEIGHT, MOUSE_CURSOR_SHAPE};
+mod pci;
 
 // ================================================================
 // 色
