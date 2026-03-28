@@ -1,6 +1,29 @@
 // pci.rs
 
 use core::arch::asm;
+use spin::Mutex;
+
+const CONFIG_ADDRESS: u16 = 0x0cf8;
+const CONFIG_DATA: u16 = 0x0cfc;
+
+pub static DEVICES: Mutex<[Option<Device>; 32]> = Mutex::new([None; 32]);
+pub static NUM_DEVICE: Mutex<usize> = Mutex::new(0);
+
+// -----------------------------------------------
+// Error 型
+// -----------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PciError {
+    Full,
+}
+#[derive(Debug, Clone, Copy)]
+pub struct Device {
+    pub bus: u8,
+    pub device: u8,
+    pub function: u8,
+    pub header_type: u8,
+}
 
 // -----------------------------------------------
 // IO ポート操作
@@ -23,43 +46,6 @@ unsafe fn io_in32(addr: u16) -> u32 {
     );
     data
 }
-
-// -----------------------------------------------
-// 定数
-// -----------------------------------------------
-
-const CONFIG_ADDRESS: u16 = 0x0cf8;
-const CONFIG_DATA: u16 = 0x0cfc;
-
-// -----------------------------------------------
-// Error 型
-// -----------------------------------------------
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PciError {
-    Full,
-}
-
-// -----------------------------------------------
-// Device 構造体
-// -----------------------------------------------
-
-#[derive(Debug, Clone, Copy)]
-pub struct Device {
-    pub bus: u8,
-    pub device: u8,
-    pub function: u8,
-    pub header_type: u8,
-}
-
-// -----------------------------------------------
-// グローバル変数
-// -----------------------------------------------
-
-use spin::Mutex;
-
-pub static DEVICES: Mutex<[Option<Device>; 32]> = Mutex::new([None; 32]);
-pub static NUM_DEVICE: Mutex<usize> = Mutex::new(0);
 
 // -----------------------------------------------
 // CONFIG_ADDRESS / CONFIG_DATA 操作
@@ -90,7 +76,6 @@ fn make_address(bus: u8, device: u8, function: u8, reg_addr: u8) -> u32 {
 // -----------------------------------------------
 // PCI コンフィギュレーション空間 Read 系
 // -----------------------------------------------
-
 // rustの切り詰めは下位ビットのみを正確に残す
 
 pub fn read_vendor_id(bus: u8, device: u8, function: u8) -> u16 {
