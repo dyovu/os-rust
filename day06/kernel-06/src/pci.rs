@@ -77,6 +77,8 @@ fn read_data() -> u32 {
     unsafe { io_in32(CONFIG_DATA) }
 }
 
+// reg_addrは対象のPCIコンフィギュレーションのデータをどの部分から読むかのオフセット
+// CONFIG_DATAからは常に三十二ビットずつしか読めないため
 fn make_address(bus: u8, device: u8, function: u8, reg_addr: u8) -> u32 {
     (1u32 << 31)
         | ((bus as u32) << 16)
@@ -88,6 +90,8 @@ fn make_address(bus: u8, device: u8, function: u8, reg_addr: u8) -> u32 {
 // -----------------------------------------------
 // PCI コンフィギュレーション空間 Read 系
 // -----------------------------------------------
+
+// rustの切り詰めは下位ビットのみを正確に残す
 
 pub fn read_vendor_id(bus: u8, device: u8, function: u8) -> u16 {
     write_address(make_address(bus, device, function, 0x00));
