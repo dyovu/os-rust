@@ -8,6 +8,7 @@ use spin::Mutex;
 use crate::graphics::font::draw_char;
 use crate::graphics::framebuffer::{PixelWriter, PixelColor};
 
+const WINDOW_ORIGIN: [u64; 2] = [0, 30];
 const ROWS: usize = 25;
 const COLUMNS: usize = 80;
 
@@ -39,7 +40,7 @@ impl Console {
                 self.new_line();
             } else if self.cursor_column < COLUMNS {
                 if let Some(w) = self.writer.lock().as_ref() {
-                    draw_char(w, 8 * self.cursor_column as u64, 16 * self.cursor_row as u64, c, self.fg_color);
+                    draw_char(w, 8 * self.cursor_column as u64, WINDOW_ORIGIN[1] + 16 * self.cursor_row as u64, c, self.fg_color);
                 }
                 self.buffer[self.cursor_row][self.cursor_column] = c;
                 self.cursor_column += 1;
@@ -69,7 +70,7 @@ impl Console {
                         );
                     }
                     for (col, c) in self.buffer[i].iter().enumerate() {
-                        draw_char(w, (8 * col) as u64, (16 * i) as u64, *c, self.fg_color);
+                        draw_char(w, (8 * col) as u64, WINDOW_ORIGIN[1] + (16 * i) as u64, *c, self.fg_color);
                     }
                 }
             }
