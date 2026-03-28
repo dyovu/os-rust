@@ -13,6 +13,7 @@ use graphics::framebuffer::{FrameBufferInfo, PixelWriter, PixelColor};
 use graphics::console::Console;
 use graphics::mouse_cursor::{MOUSE_CURSOR_WIDTH, MOUSE_CURSOR_HEIGHT, MOUSE_CURSOR_SHAPE};
 mod pci;
+use pci::{DEVICES, NUM_DEVICE};
 
 // ================================================================
 // 色
@@ -194,10 +195,7 @@ pub extern "sysv64" fn _start(
 
     draw_desktop(&PIXEL_WRITER, framebuffer_info.width as u64, framebuffer_info.height as u64);
 
-    for i in 0..27 {
-        printk!("printk: {}\n", i);
-    }
-
+    // マウスカーソルの描画
     if let Some(w) = PIXEL_WRITER.lock().as_ref(){
         for dy in 0..MOUSE_CURSOR_HEIGHT{
             for dx in 0..MOUSE_CURSOR_WIDTH{
@@ -214,7 +212,19 @@ pub extern "sysv64" fn _start(
         }
     }
 
-    
+    pci::scan_all_bus().expect("PCI scan failed");
+
+    for i in 0..*NUM_DEVICE.lock(){
+        if let Some(dev) = DEVICES.lock()[i]{
+            let vendor_id = pci::read_vendor_id(dev.bus, dev.device, dev.function);
+            let class_code = pci::read_vendor_id(dev.bus, dev.device, dev.function);
+            printk!("{}.{}.{}: vend {}, class {}, head {}\n",
+                dev.bus, dev.device, dev.function,
+                vendor_id, class_code, dev.header_type
+            );
+
+        }
+    }
 
     loop {}
 }
