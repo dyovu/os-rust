@@ -48,7 +48,8 @@ impl PixelWriter {
         }
     }
 
-    // color は BGR 32bit フォーマット 基本的に(0x00_RR_GG_BB)
+    // color は BGR 32bit フォーマット 基本的に(0x00_BB_GG_RR)
+    // BGRフォーマットとは「メモリ上のバイト順が B, G, R」という意味
     pub fn write(&self, x: u64, y: u64, color: PixelColor) {
         let c = match self.format {
             // byte[0]=R, byte[1]=G, byte[2]=B

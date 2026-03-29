@@ -217,7 +217,7 @@ pub extern "sysv64" fn _start(
     for i in 0..*NUM_DEVICE.lock(){
         if let Some(dev) = DEVICES.lock()[i]{
             let vendor_id = pci::read_vendor_id(dev.bus, dev.device, dev.function);
-            let class_code = pci::read_vendor_id(dev.bus, dev.device, dev.function);
+            let class_code = pci::read_class_code(dev.bus, dev.device, dev.function);
             printk!("{}.{}.{}: vend {}, class {}, head {}\n",
                 dev.bus, dev.device, dev.function,
                 vendor_id, class_code, dev.header_type
