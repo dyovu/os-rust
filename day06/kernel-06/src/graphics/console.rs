@@ -35,11 +35,13 @@ impl Console {
     }
 
     pub fn put_string(&mut self, text: &str) {
+        let guard = self.writer.lock();
+        let w: Option<&PixelWriter> = guard.as_ref();
         for c in text.chars() {
             if c == '\n' {
-                self.new_line();
+                self.new_line(w);
             } else if self.cursor_column < COLUMNS {
-                if let Some(w) = self.writer.lock().as_ref() {
+                if let Some(w) = w {
                     draw_char(w, 8 * self.cursor_column as u64, WINDOW_ORIGIN[1] + 16 * self.cursor_row as u64, c, self.fg_color);
                 }
                 self.buffer[self.cursor_row][self.cursor_column] = c;
@@ -48,13 +50,12 @@ impl Console {
         }
     }
 
-    fn new_line(&mut self) {
+    fn new_line(&mut self, w: Option<&PixelWriter>) {
         self.cursor_column = 0;
         if self.cursor_row < ROWS - 1 {
             self.cursor_row += 1;
         } else {
-            let guard = self.writer.lock();
-            if let Some(w) = guard.as_ref() {
+            if let Some(w) = w {
                 for y in 0..16 * ROWS {
                     for x in 0..8 * COLUMNS {
                         w.write(x as u64, y as u64, self.bg_color);
