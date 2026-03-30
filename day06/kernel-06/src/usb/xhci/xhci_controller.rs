@@ -41,7 +41,7 @@ struct OperationalRegisters{
  */ 
 pub struct Controller {
     mmio_base: usize,
-    max_ports: u8,
+    pub max_ports: u8,
 }
 
 impl Controller {

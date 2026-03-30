@@ -256,5 +256,22 @@ pub extern "sysv64" fn _start(
         );
     }
 
+    let xhc_device = xhc_device.unwrap();
+    
+    let xhc_mmio_base = match pci::read_bar(&xhc_device, 0){
+        Ok(base_addr) => {
+            (base_addr & !(0xfu64)) as usize
+        }
+        Err(e) => {
+            printk!("failed to read BAR: {:?}", e);
+            loop {
+
+            }
+        }
+    };
+    let xhci_controller = Controller::new(xhc_mmio_base);
+
+    printk!("max_ports: {}", xhci_controller.max_ports);
+
     loop {}
 }

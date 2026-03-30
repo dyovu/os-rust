@@ -16,6 +16,7 @@ pub static NUM_DEVICE: Mutex<usize> = Mutex::new(0);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PciError {
     Full,
+    IndexOutOfRange,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -218,4 +219,30 @@ pub fn scan_all_bus() -> Result<(), PciError> {
     }
 
     Ok(())
+}
+
+fn read_conf_reg(dev: &Device, reg_offset: u8) -> u64{
+    write_address(make_address(dev.bus, dev.device, dev.function, reg_offset));
+    read_data() as u64
+}
+
+pub fn read_bar(dev: &Device, bar_index: u8) -> Result<(u64), PciError>{
+    if bar_index >= 6 {
+        return Err(PciError::IndexOutOfRange)
+    }
+
+    let addr:u8 = 4*(4+bar_index);
+    let bar = read_conf_reg(dev, addr);
+
+    if (bar & 4) == 0 {
+      return Ok(bar);
+    }
+
+    if bar_index >= 5 {
+        return Err(PciError::IndexOutOfRange)
+    }
+
+    let bar_upper = read_conf_reg(dev, addr+4) as u64;
+
+    Ok(bar | bar_upper << 32)
 }
