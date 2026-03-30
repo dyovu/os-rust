@@ -13,7 +13,7 @@ use graphics::framebuffer::{FrameBufferInfo, PixelWriter, PixelColor};
 use graphics::console::Console;
 use graphics::mouse_cursor::{MOUSE_CURSOR_WIDTH, MOUSE_CURSOR_HEIGHT, MOUSE_CURSOR_SHAPE};
 mod pci;
-use pci::{DEVICES, NUM_DEVICE};
+use pci::{Device, DEVICES, NUM_DEVICE};
 mod usb;
 use usb::xhci::xhci_controller::Controller;
 
@@ -216,16 +216,44 @@ pub extern "sysv64" fn _start(
 
     pci::scan_all_bus().expect("PCI scan failed");
 
-    for i in 0..*NUM_DEVICE.lock(){
-        if let Some(dev) = DEVICES.lock()[i]{
-            let vendor_id = pci::read_vendor_id(dev.bus, dev.device, dev.function);
-            let class_code = pci::read_class_code(dev.bus, dev.device, dev.function);
-            printk!("{}.{}.{}: vend {}, class {}, head {}\n",
-                dev.bus, dev.device, dev.function,
-                vendor_id, class_code, dev.header_type
-            );
-
+    {
+        let num_device = *NUM_DEVICE.lock();
+        let devices = DEVICES.lock();
+        for i in 0..num_device {
+            if let Some(dev) = devices[i] {
+                let vendor_id = pci::read_vendor_id_from_dev(dev);
+                printk!("{}.{}.{}: vend {}, class {:?}, head {}\n",
+                    dev.bus, dev.device, dev.function,
+                    vendor_id, dev.class_code, dev.header_type
+                );
+            }
         }
+    }
+    
+
+    let mut xhc_device: Option<Device> = None;
+
+    {
+        let num_device = *NUM_DEVICE.lock();
+        let devices = DEVICES.lock();
+        for i in 0..num_device{
+            if let Some(dev) = devices[i]{
+                if dev.class_code.match_all(0x0c, 0x03, 0x30){
+                    xhc_device = Some(dev);
+
+                    if 0x8086 == pci::read_vendor_id_from_dev(dev){
+                        break
+                    }
+                }
+            }
+        }
+    }
+    
+
+    if let Some(xhc_dev) = xhc_device{
+        printk!("xHC has been found: {}, {}, {} \n",
+            xhc_dev.bus, xhc_dev.device, xhc_dev.function, 
+        );
     }
 
     loop {}

@@ -19,7 +19,7 @@ pub enum PciError {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct ClassCode{
+pub struct ClassCode{
     base: u8,
     sub: u8,
     interface: u8,
@@ -34,7 +34,7 @@ impl ClassCode{
         self.base == b && self.sub ==  s
     }
 
-    fn match_all(&self, b: u8, s:u8, i: u8) -> bool{
+    pub fn match_all(&self, b: u8, s:u8, i: u8) -> bool{
         self.base == b && self.sub == s && self.interface ==  i
     }
 }
@@ -45,7 +45,7 @@ pub struct Device {
     pub device: u8,
     pub function: u8,
     pub header_type: u8,
-    class_code: ClassCode,
+    pub class_code: ClassCode,
 }
 
 // -----------------------------------------------
@@ -101,9 +101,13 @@ fn make_address(bus: u8, device: u8, function: u8, reg_addr: u8) -> u32 {
 // -----------------------------------------------
 // rustの切り詰めは下位ビットのみを正確に残す
 
-pub fn read_vendor_id(bus: u8, device: u8, function: u8) -> u16 {
+fn read_vendor_id(bus: u8, device: u8, function: u8) -> u16 {
     write_address(make_address(bus, device, function, 0x00));
     read_data() as u16
+}
+
+pub fn read_vendor_id_from_dev(dev:Device) -> u16{
+    read_vendor_id(dev.bus, dev.device, dev.function)
 }
 
 pub fn read_device_id(bus: u8, device: u8, function: u8) -> u16 {
