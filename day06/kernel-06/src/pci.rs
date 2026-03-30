@@ -17,12 +17,35 @@ pub static NUM_DEVICE: Mutex<usize> = Mutex::new(0);
 pub enum PciError {
     Full,
 }
+
+#[derive(Debug, Clone, Copy)]
+struct ClassCode{
+    base: u8,
+    sub: u8,
+    interface: u8,
+}
+
+impl ClassCode{
+    fn match_base(&self, b: u8) -> bool{
+        self.base == b
+    }
+
+    fn match_base_sub(&self, b: u8, s:u8) -> bool{
+        self.base == b && self.sub ==  s
+    }
+
+    fn match_all(&self, b: u8, s:u8, i: u8) -> bool{
+        self.base == b && self.sub == s && self.interface ==  i
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Device {
     pub bus: u8,
     pub device: u8,
     pub function: u8,
     pub header_type: u8,
+    class_code: ClassCode,
 }
 
 // -----------------------------------------------
@@ -93,9 +116,14 @@ pub fn read_header_type(bus: u8, device: u8, function: u8) -> u8 {
     ((read_data() >> 16) & 0xff) as u8
 }
 
-pub fn read_class_code(bus: u8, device: u8, function: u8) -> u32 {
+pub fn read_class_code(bus: u8, device: u8, function: u8) -> ClassCode {
     write_address(make_address(bus, device, function, 0x08));
-    read_data()
+    let reg = read_data();
+    ClassCode{
+        base: (reg >> 24) as u8,
+        sub: (reg >> 16) as u8,
+        interface: (reg >> 8) as u8,
+    }
 }
 
 pub fn read_bus_numbers(bus: u8, device: u8, function: u8) -> u32 {
@@ -111,7 +139,7 @@ pub fn is_single_function_device(header_type: u8) -> bool {
 // デバイス登録
 // -----------------------------------------------
 
-fn add_device(bus: u8, device: u8, function: u8, header_type: u8) -> Result<(), PciError> {
+fn add_device(bus: u8, device: u8, function: u8, header_type: u8, class_code: ClassCode) -> Result<(), PciError> {
     let mut devices = DEVICES.lock();
     let mut num = NUM_DEVICE.lock();
 
@@ -119,7 +147,7 @@ fn add_device(bus: u8, device: u8, function: u8, header_type: u8) -> Result<(), 
         return Err(PciError::Full);
     }
 
-    devices[*num] = Some(Device { bus, device, function, header_type });
+    devices[*num] = Some(Device { bus, device, function, header_type, class_code});
     *num += 1;
     Ok(())
 }
@@ -130,13 +158,10 @@ fn add_device(bus: u8, device: u8, function: u8, header_type: u8) -> Result<(), 
 
 fn scan_function(bus: u8, device: u8, function: u8) -> Result<(), PciError> {
     let header_type = read_header_type(bus, device, function);
-    add_device(bus, device, function, header_type)?;
-
     let class_code = read_class_code(bus, device, function);
-    let base = ((class_code >> 24) & 0xff) as u8;
-    let sub  = ((class_code >> 16) & 0xff) as u8;
+    add_device(bus, device, function, header_type, class_code)?;
 
-    if base == 0x06 && sub == 0x04 {
+    if class_code.match_base_sub(0x06, 0x04) {
         // PCI-PCI ブリッジ
         let bus_numbers = read_bus_numbers(bus, device, function);
         let secondary_bus = ((bus_numbers >> 8) & 0xff) as u8;
