@@ -261,7 +261,7 @@ fn main() -> Status {
     };
 
     // メモリマップをファイルに保存（デバッグ用）
-    save_memory_map_to_file(image_handle, &memory_map_data).unwrap();
+    // save_memory_map_to_file(image_handle, &memory_map_data).unwrap();
 
     // メモリマップをRawMemoryDescriptor配列に変換
     let mut memory_entries = [RawMemoryDescriptor {
