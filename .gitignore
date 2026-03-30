@@ -3,4 +3,5 @@
 
 **/target/
 
-**/**/memory_map.txt
+esp/
+firmware/
