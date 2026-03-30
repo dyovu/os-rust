@@ -47,8 +47,8 @@ pub struct Controller {
 impl Controller {
     pub fn new(mmio_base: usize) -> Self{
         let max_ports = unsafe {
-            // HCSPARAMS1を読んでmax_portsを取得
-            todo!()
+            let hcsparams1 = (*(mmio_base as *const CapabilityRegisters)).HCSPARAMS1;
+            (hcsparams1 >> 24) as u8
         };
         Self{
             mmio_base,

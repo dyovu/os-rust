@@ -15,6 +15,7 @@ use graphics::mouse_cursor::{MOUSE_CURSOR_WIDTH, MOUSE_CURSOR_HEIGHT, MOUSE_CURS
 mod pci;
 use pci::{DEVICES, NUM_DEVICE};
 mod usb;
+use usb::xhci::xhci_controller::Controller;
 
 // ================================================================
 // 色
