@@ -53,21 +53,28 @@ pub struct Device {
 // IO ポート操作
 // -----------------------------------------------
 
+// `unsafe fn`は呼び出し側がこの関数を呼ぶ際に
+// `unsafe`ブロックで囲むことを指定する
 unsafe fn io_out32(addr: u16, data: u32) {
-    asm!(
-        "out dx, eax",
-        in("dx") addr,
-        in("eax") data,
-    );
+    unsafe{
+                asm!(
+            "out dx, eax",
+            in("dx") addr,
+            in("eax") data,
+        );
+    }
 }
+
 
 unsafe fn io_in32(addr: u16) -> u32 {
     let data: u32;
-    asm!(
-        "in eax, dx",
-        out("eax") data,
-        in("dx") addr,
-    );
+    unsafe{
+        asm!(
+            "in eax, dx",
+            out("eax") data,
+            in("dx") addr,
+        );
+    }
     data
 }
 
@@ -231,7 +238,7 @@ fn write_conf_reg(dev: &Device, reg_offset: u8, value: u32) {
     write_data(value);
 }
 
-pub fn read_bar(dev: &Device, bar_index: u8) -> Result<(u64), PciError>{
+pub fn read_bar(dev: &Device, bar_index: u8) -> Result<u64, PciError>{
     if bar_index >= 6 {
         return Err(PciError::IndexOutOfRange)
     }
