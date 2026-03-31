@@ -221,7 +221,7 @@ pub extern "sysv64" fn _start(
         let devices = DEVICES.lock();
         for i in 0..num_device {
             if let Some(dev) = devices[i] {
-                let vendor_id = pci::read_vendor_id_from_dev(dev);
+                let vendor_id = pci::read_vendor_id_from_dev(&dev);
                 printk!("{}.{}.{}: vend {}, class {:?}, head {}\n",
                     dev.bus, dev.device, dev.function,
                     vendor_id, dev.class_code, dev.header_type
@@ -232,7 +232,6 @@ pub extern "sysv64" fn _start(
     
 
     let mut xhc_device: Option<Device> = None;
-
     {
         let num_device = *NUM_DEVICE.lock();
         let devices = DEVICES.lock();
@@ -241,23 +240,20 @@ pub extern "sysv64" fn _start(
                 if dev.class_code.match_all(0x0c, 0x03, 0x30){
                     xhc_device = Some(dev);
 
-                    if 0x8086 == pci::read_vendor_id_from_dev(dev){
+                    if 0x8086 == pci::read_vendor_id_from_dev(&dev){
                         break
                     }
                 }
             }
         }
     }
-    
-
-    if let Some(xhc_dev) = xhc_device{
-        printk!("xHC has been found: {}, {}, {} \n",
-            xhc_dev.bus, xhc_dev.device, xhc_dev.function, 
-        );
-    }
 
     let xhc_device = xhc_device.unwrap();
-    
+
+    printk!("xHC has been found: {}, {}, {} \n",
+        xhc_device.bus, xhc_device.device, xhc_device.function, 
+    );
+
     let xhc_mmio_base = match pci::read_bar(&xhc_device, 0){
         Ok(base_addr) => {
             (base_addr & !(0xfu64)) as usize
@@ -269,9 +265,10 @@ pub extern "sysv64" fn _start(
             }
         }
     };
-    let xhci_controller = Controller::new(xhc_mmio_base);
 
-    printk!("max_ports: {}", xhci_controller.max_ports);
+    let xhc_controller = Controller::new(xhc_mmio_base);
+    pci::switch_ehci2xhci(&xhc_device);
+    printk!("max_ports: {}", xhc_controller.max_ports);
 
     loop {}
 }

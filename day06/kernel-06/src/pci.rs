@@ -107,7 +107,7 @@ fn read_vendor_id(bus: u8, device: u8, function: u8) -> u16 {
     read_data() as u16
 }
 
-pub fn read_vendor_id_from_dev(dev:Device) -> u16{
+pub fn read_vendor_id_from_dev(dev: &Device) -> u16{
     read_vendor_id(dev.bus, dev.device, dev.function)
 }
 
@@ -221,9 +221,14 @@ pub fn scan_all_bus() -> Result<(), PciError> {
     Ok(())
 }
 
-fn read_conf_reg(dev: &Device, reg_offset: u8) -> u64{
+fn read_conf_reg(dev: &Device, reg_offset: u8) -> u32{
     write_address(make_address(dev.bus, dev.device, dev.function, reg_offset));
-    read_data() as u64
+    read_data()
+}
+
+fn write_conf_reg(dev: &Device, reg_offset: u8, value: u32) {
+    write_address(make_address(dev.bus, dev.device, dev.function, reg_offset));
+    write_data(value);
 }
 
 pub fn read_bar(dev: &Device, bar_index: u8) -> Result<(u64), PciError>{
@@ -232,7 +237,7 @@ pub fn read_bar(dev: &Device, bar_index: u8) -> Result<(u64), PciError>{
     }
 
     let addr:u8 = 4*(4+bar_index);
-    let bar = read_conf_reg(dev, addr);
+    let bar = read_conf_reg(dev, addr) as u64;
 
     if (bar & 4) == 0 {
       return Ok(bar);
@@ -245,4 +250,24 @@ pub fn read_bar(dev: &Device, bar_index: u8) -> Result<(u64), PciError>{
     let bar_upper = read_conf_reg(dev, addr+4) as u64;
 
     Ok(bar | bar_upper << 32)
+}
+
+pub fn switch_ehci2xhci(xhc_dev: &Device) {
+    let num_device = *NUM_DEVICE.lock();
+    let devices = DEVICES.lock();
+
+    let intel_ehc_exist = (0..num_device).any(|i| {
+        devices[i].map_or(false, |dev| {
+            dev.class_code.match_all(0x0c, 0x03, 0x20) && read_vendor_id_from_dev(&dev) == 0x8086
+        })
+    });
+
+    if !intel_ehc_exist {
+        return;
+    }
+
+    let superspeed_ports = read_conf_reg(xhc_dev, 0xdc) ;
+    write_conf_reg(xhc_dev, 0xd8, superspeed_ports);
+    let ehci2xhci_ports = read_conf_reg(xhc_dev, 0xd4);
+    write_conf_reg(xhc_dev, 0xd0, ehci2xhci_ports);
 }
