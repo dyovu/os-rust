@@ -1,10 +1,12 @@
 #![no_main]
 #![no_std]
 
+extern crate alloc;
 use core::panic::PanicInfo;
 use core::fmt::Write;
 use core::ops::AddAssign;
 use spin::Mutex;
+use linked_list_allocator::LockedHeap;
 
 mod serial;
 use serial::{serial_print_str, print_decimal, print_hex};
@@ -42,12 +44,26 @@ pub struct RawMemoryDescriptor {
 }
 
 // ================================================================
-// パニックハンドラ
+// パニックハンドラ / グローバルアロケータ
 // ================================================================
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     loop {}
+}
+
+// usbドライバのデバイス管理、ring bufのための一時的なアロケータ
+#[global_allocator]
+static ALLOCATOR: LockedHeap = LockedHeap::empty();
+const HEAP_SIZE: usize = 100 * 1024;
+// 配列の実体サイズと、アロケータに伝えるサイズを合わせる
+static mut HEAP:[u8; HEAP_SIZE] = [0; HEAP_SIZE];
+
+pub fn init_heap() {
+    unsafe {
+        let heap_ptr = core::ptr::addr_of_mut!(HEAP) as *mut u8;
+        ALLOCATOR.lock().init(heap_ptr, HEAP_SIZE);
+    }
 }
 
 // ================================================================
@@ -181,6 +197,7 @@ pub extern "sysv64" fn _start(
     mmap_ptr: *const RawMemoryDescriptor,
     mmap_len: usize,
 ) -> ! {
+    init_heap();
 
     *PIXEL_WRITER.lock() = Some(PixelWriter::new(framebuffer_info));
 

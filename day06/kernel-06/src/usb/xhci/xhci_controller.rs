@@ -5,6 +5,7 @@
 // ================================================================
 
 use crate::usb::xhci::registers::{CapabilityRegisters, OperationalRegisters};
+use crate::usb::xhci::device_manager::{DeviceManager};
 
 /*
  * 生ポインタを構造体に持たせるのは避ける
@@ -14,10 +15,12 @@ use crate::usb::xhci::registers::{CapabilityRegisters, OperationalRegisters};
 pub struct Controller {
     mmio_base: usize,
     pub max_ports: u8,
+    device_manager: DeviceManager
 }
 
 impl Controller {
     pub fn new(mmio_base: usize) -> Self{
+        let max_slots:usize = 8;
         let max_ports = unsafe {
             let hcsparams1 = (*(mmio_base as *const CapabilityRegisters)).HCSPARAMS1;
             (hcsparams1 >> 24) as u8
@@ -25,10 +28,11 @@ impl Controller {
         Self{
             mmio_base,
             max_ports,
+            device_manager: DeviceManager::new(max_slots),
         }
     }
 
-    pub fn initialize() -> Result<(), ()>{
+    pub fn initialize(&self) -> Result<(), ()>{
 
         Ok(())
     }

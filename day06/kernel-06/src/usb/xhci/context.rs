@@ -1,9 +1,14 @@
 // ================================================================
-// @file usb/xhci/device.rs
+// @file usb/xhci/context.rs
 //
-// USB デバイスを表すクラスと関連機能．
+// device contextとか
 // ================================================================
 
-pub struct Device{
+
+pub struct DeviceContext{
+
+}
+
+impl DeviceContext{
 
 }
