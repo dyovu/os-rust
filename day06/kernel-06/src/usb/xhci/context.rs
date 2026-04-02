@@ -4,42 +4,31 @@
 // xHCIのcontextの構造体
 // ================================================================
 
+use modular_bitfield::prelude::*;
+
+#[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
-#[repr(C, packed)]
 pub struct SlotContextBits {
-    // dword 0
-    // [0:19]   route_string
-    // [20:23]  speed
-    // [24]     reserved
-    // [25]     mtt
-    // [26]     hub
-    // [27:31]  context_entries
-    pub dword0: u32,
+    pub route_string: B20,
+    pub speed: B4,
+    #[skip] __: B1,
+    pub mtt: B1,
+    pub hub: B1,
+    pub context_entries: B5,
 
-    // dword 1
-    // [0:15]   max_exit_latency
-    // [16:23]  root_hub_port_num
-    // [24:31]  num_ports
-    pub dword1: u32,
+    pub max_exit_latency: B16,
+    pub root_hub_port_num: B8,
+    pub num_ports: B8,
 
-    // dword 2
-    // [0:7]    tt_hub_slot_id
-    // [8:15]   tt_port_num
-    // [16:17]  ttt
-    // [18:21]  reserved
-    // [22:31]  interrupter_target
-    pub dword2: u32,
+    pub tt_hub_slot_id: B8,
+    pub tt_port_num: B8,
+    pub ttt: B2,
+    #[skip] __: B4,
+    pub interrupter_target: B10,
 
-    // dword 3
-    // [0:7]    usb_device_address
-    // [8:26]   reserved
-    // [27:31]  slot_state
-    pub dword3: u32,
-
-    pub dword4: u32,
-    pub dword5: u32,
-    pub dword6: u32,
-    pub dword7: u32,
+    pub usb_device_address: B8,
+    #[skip] __: B19,
+    pub slot_state: B5,
 }
 
 #[repr(C, packed)]
@@ -48,43 +37,31 @@ pub union SlotContext {
     pub bits: SlotContextBits,
 }
 
+#[bitfield(bits = 160)]
 #[derive(Debug, Copy, Clone)]
-#[repr(C, packed)]
 pub struct EndpointContextBits {
-    // dword 0
-    // [0:2]    ep_state
-    // [3:7]    reserved
-    // [8:9]    mult
-    // [10:14]  max_primary_streams
-    // [15]     linear_stream_array
-    // [16:23]  interval
-    // [24:31]  max_esit_payload_hi
-    pub dword0: u32,
+    pub ep_state: B3,
+    #[skip] __: B5,
+    pub mult: B2,
+    pub max_primary_streams: B5,
+    pub linear_stream_array: B1,
+    pub interval: B8,
+    pub max_esit_payload_hi: B8,
 
-    // dword 1
-    // [0]      reserved
-    // [1:2]    error_count
-    // [3:5]    ep_type
-    // [6]      reserved
-    // [7]      host_initiate_disable
-    // [8:15]   max_burst_size
-    // [16:31]  max_packet_size
-    pub dword1: u32,
+    #[skip] __: B1,
+    pub error_count: B2,
+    pub ep_type: B3,
+    #[skip] __: B1,
+    pub host_initiate_disable: B1,
+    pub max_burst_size: B8,
+    pub max_packet_size: B16,
 
-    // dword 2-3: tr_dequeue_pointer (64bit)
-    // [0]      dequeue_cycle_state
-    // [1:3]    reserved
-    // [4:63]   tr_dequeue_pointer
-    pub dequeue: u64,
+    pub dequeue_cycle_state: B1,
+    #[skip] __: B3,
+    pub tr_dequeue_pointer: B60,
 
-    // dword 4
-    // [0:15]   average_trb_length
-    // [16:31]  max_esit_payload_lo
-    pub dword4: u32,
-
-    pub dword5: u32,
-    pub dword6: u32,
-    pub dword7: u32,
+    pub average_trb_length: B16,
+    pub max_esit_payload_lo: B16,
 }
 
 #[repr(C, packed)]
