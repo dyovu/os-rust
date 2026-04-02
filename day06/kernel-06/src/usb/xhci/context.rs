@@ -6,6 +6,9 @@
 
 use modular_bitfield::prelude::*;
 
+// ================================================================
+// SlotContext
+// ================================================================
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
 pub struct SlotContextBits {
@@ -32,11 +35,15 @@ pub struct SlotContextBits {
 }
 
 #[repr(C, packed)]
+#[derive(Copy, Clone)]
 pub union SlotContext {
     pub dwords: [u32; 8],
     pub bits: SlotContextBits,
 }
 
+// ================================================================
+// EndPointContext
+// ================================================================
 #[bitfield(bits = 160)]
 #[derive(Debug, Copy, Clone)]
 pub struct EndpointContextBits {
@@ -64,18 +71,69 @@ pub struct EndpointContextBits {
     pub max_esit_payload_lo: B16,
 }
 
+impl EndpointContextBits{
+    pub fn TransferRingBuffer(){
+
+    }
+
+    pub fn SetTransferRingBuffer(buffer: &TBR){
+
+    }
+}
+
 #[repr(C, packed)]
+#[derive(Copy, Clone)]
 pub union EndpointContext {
     pub dwords: [u32; 8],
     pub bits: EndpointContextBits,
 }
 
-#[derive(Debug, Copy, Clone)]
-#[repr(C, align(64))]
-pub struct DeviceContext{
+// ================================================================
+// DeviceContext
+// ================================================================
+struct DeviceContextIndex{
+    value: i32,
+}
+
+impl DeviceContextIndex{
 
 }
 
+#[repr(C, align(64))]
+#[derive(Copy, Clone)]
+pub struct DeviceContext{
+    slot_context: SlotContext,
+    ep_contexts: [EndpointContext; 31],
+}
+
 impl DeviceContext{
+    
+}
+
+// ================================================================
+// InputContext
+// ================================================================
+#[repr(C, align(64))]
+#[derive(Copy, Clone)]
+pub struct InputControlContext {
+    drop_context_flags: u32,
+    add_context_flags: u32,
+    _reserved1 : [u32; 5],
+    configuration_value: u8,
+    interface_number: u8,
+    alternate_setting: u8,
+    _reserved2: u8,
+}
+
+#[repr(C, align(64))]
+#[derive(Copy, Clone)]
+pub struct InputContext{
+    input_controll_context: InputControlContext,
+    slot_context: SlotContext,
+    ep_contexts: [EndpointContext; 31],
+}
+
+impl InputContext{
+    
 
 }
