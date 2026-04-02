@@ -71,13 +71,13 @@ pub struct EndpointContextBits {
     pub max_esit_payload_lo: B16,
 }
 
-impl EndpointContextBits{
-    pub fn TransferRingBuffer(){
-
+impl EndpointContextBits {
+    pub fn transfer_ring_buffer(&self) -> *mut TRB {
+        (self.tr_dequeue_pointer() << 4) as *mut TRB
     }
 
-    pub fn SetTransferRingBuffer(buffer: &TBR){
-
+    pub fn set_transfer_ring_buffer(&mut self, buffer: *const TRB) {
+        self.set_tr_dequeue_pointer((buffer as u64) >> 4);
     }
 }
 
@@ -91,22 +91,34 @@ pub union EndpointContext {
 // ================================================================
 // DeviceContext
 // ================================================================
-struct DeviceContextIndex{
-    value: i32,
+#[derive(Copy, Clone)]
+pub struct DeviceContextIndex {
+    pub value: i32,
 }
 
-impl DeviceContextIndex{
+impl DeviceContextIndex {
+    pub fn new(dci: i32) -> Self {
+        Self { value: dci }
+    }
 
+    pub fn from_endpoint_id(ep_id: EndpointID) -> Self {
+        Self { value: ep_id.address() }
+    }
+
+    pub fn from_endpoint_num(ep_num: i32, dir_in: bool) -> Self {
+        let direction = if ep_num == 0 { 1 } else if dir_in { 1 } else { 0 };
+        Self { value: 2 * ep_num + direction }
+    }
 }
 
 #[repr(C, align(64))]
 #[derive(Copy, Clone)]
-pub struct DeviceContext{
-    slot_context: SlotContext,
-    ep_contexts: [EndpointContext; 31],
+pub struct DeviceContext {
+    pub slot_context: SlotContext,
+    pub ep_contexts: [EndpointContext; 31],
 }
 
-impl DeviceContext{
+impl DeviceContext {
     
 }
 
@@ -116,24 +128,31 @@ impl DeviceContext{
 #[repr(C, align(64))]
 #[derive(Copy, Clone)]
 pub struct InputControlContext {
-    drop_context_flags: u32,
-    add_context_flags: u32,
-    _reserved1 : [u32; 5],
-    configuration_value: u8,
-    interface_number: u8,
-    alternate_setting: u8,
-    _reserved2: u8,
+    pub drop_context_flags: u32,
+    pub add_context_flags: u32,
+    pub _reserved1: [u32; 5],
+    pub configuration_value: u8,
+    pub interface_number: u8,
+    pub alternate_setting: u8,
+    pub _reserved2: u8,
 }
 
 #[repr(C, align(64))]
 #[derive(Copy, Clone)]
-pub struct InputContext{
-    input_controll_context: InputControlContext,
-    slot_context: SlotContext,
-    ep_contexts: [EndpointContext; 31],
+pub struct InputContext {
+    pub input_control_context: InputControlContext,
+    pub slot_context: SlotContext,
+    pub ep_contexts: [EndpointContext; 31],
 }
 
-impl InputContext{
-    
+impl InputContext {
+    pub fn enable_slot_context(&mut self) -> &mut SlotContext {
+        self.input_control_context.add_context_flags |= 1;
+        &mut self.slot_context
+    }
 
+    pub fn enable_endpoint(&mut self, dci: DeviceContextIndex) -> &mut EndpointContext {
+        self.input_control_context.add_context_flags |= 1 << dci.value;
+        &mut self.ep_contexts[(dci.value - 1) as usize]
+    }
 }
