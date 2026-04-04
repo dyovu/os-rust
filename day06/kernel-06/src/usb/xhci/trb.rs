@@ -6,6 +6,9 @@
 
 use modular_bitfield::prelude::*;
 
+use crate::usb::xhci::context::{InputContext};
+use crate::usb::endpoint::EndpointID;
+
 
 /**
  * TRBの基本形
@@ -398,13 +401,13 @@ impl StopEndpointCommandTRB {
     pub fn initialize(endpoint_id: EndpointID, slot_id: u8) -> Self {
         let mut trb = StopEndpointCommandTRB::new();
         trb.set_trb_type(StopEndpointCommandTRB::TYPE);
-        trb.set_endpoint_id(endpoint_id.address());
+        trb.set_endpoint_id(endpoint_id.address() as u8);
         trb.set_slot_id(slot_id);
         trb
     }
 
-    pub fn endpoint_id(&self) -> EndpointID {
-        EndpointID::new(self.endpoint_id())
+    pub fn get_endpoint_id(&self) -> EndpointID {
+        EndpointID::from_addr(self.endpoint_id())
     }
 }
 
@@ -476,8 +479,8 @@ impl TransferEventTRB {
         self.set_trb_pointer(p as u64);
     }
 
-    pub fn endpoint_id(&self) -> EndpointID {
-        EndpointID::new(self.endpoint_id())
+    pub fn get_endpoint_id(&self) -> EndpointID {
+        EndpointID::from_addr(self.endpoint_id())
     }
 }
 

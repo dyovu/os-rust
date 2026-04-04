@@ -18,14 +18,14 @@ enum EndpointType{
 
 #[derive(Debug, Copy, Clone)]
 pub struct EndpointID{
-    addr: i32,
+    addr: u8,
 }
 
 impl EndpointID{
-    pub fn default() -> Self{
+    pub fn new() -> Self{
         Self { addr: 0 }
     }
-    pub fn from_addr(addr: i32) -> Self{
+    pub fn from_addr(addr: u8) -> Self{
         Self{ addr }
     }
 
@@ -34,17 +34,17 @@ impl EndpointID{
      * ep_num は 0..15 の整数．
      * dir_in は Control エンドポイントでは常に true にしなければならない．
      */
-    pub const fn from_parts(ep_num: i32, dir_in: bool) -> Self{
+    pub const fn from_parts(ep_num: u8, dir_in: bool) -> Self{
         Self{
-            addr: ep_num << 1 | dir_in as i32
+            addr: ep_num << 1 | dir_in as u8
         }
     }
 
-    pub fn address(&self) -> i32{
+    pub fn address(&self) -> u8{
         self.addr
     }
 
-    pub fn number(&self) -> i32{
+    pub fn number(&self) -> u8{
         self.addr >> 1
     }
 
