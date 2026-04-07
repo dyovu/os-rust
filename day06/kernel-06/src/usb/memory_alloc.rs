@@ -26,10 +26,12 @@ struct MemoryPool {
 }
 
 impl MemoryPool{
-    fn alloc_mem(&mut self, size: usize, alignment: usize, boundary: usize) -> usize {
+    fn alloc_mem(&mut self, size: usize, alignment: usize, boundary: usize) -> Option<usize> {
+        // alignmentの調整
         if alignment > 0{
             self.alloc_ptr = ceil(self.alloc_ptr, alignment);
         }
+        // 4KBのページ境界を調整
         if boundary > 0 {
             let next_boundary = ceil(self.alloc_ptr, boundary);
             if next_boundary < self.alloc_ptr + size {
@@ -37,18 +39,23 @@ impl MemoryPool{
             }
         }
 
+        // 確保したpoolの範囲外に出ないかチェック
         let pool_start = self.pool.as_ptr() as usize;
         if pool_start + MEMORY_POOL_SIZE < self.alloc_ptr + size {
-            return 0;
+            return None
         }
 
+        // 調整されたアドレスを返し、確保するサイズ分加算する
         let p = self.alloc_ptr;
         self.alloc_ptr += size;
-        p
+        Some(p)
     }
 
-    pub fn alloc_array<T>(&mut self, num_obj: usize, alignment: usize, boundary: usize) -> *const T {
-        self.alloc_mem(size_of::<T>()*num_obj, alignment, boundary) as *const T
+    pub fn alloc_array<T>(&mut self, num_obj: usize, alignment: usize, boundary: usize) -> Option<*const T> {
+        if let Some(ptr) = self.alloc_mem(size_of::<T>()*num_obj, alignment, boundary) {
+            return Some(ptr as *const T)
+        }else{
+            return None
+        }
     }
-
 }
