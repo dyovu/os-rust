@@ -6,6 +6,7 @@
 // ================================================================
 
 use core::mem::size_of;
+use spin::Mutex;
 
 // 動的メモリ確保のためのメモリプールの最大容量（バイト）
 const MEMORY_POOL_SIZE:usize = 4096 * 32;
@@ -20,35 +21,49 @@ fn mask_bits(ptr: usize , mask: usize) -> usize{
     addr & !(mask -1)
 }
 
+// ================================================================
+// USB関連のためのヒープ領域
+// ================================================================
+static MEMORY_POOL:Mutex<MemoryPool> = Mutex::new(MemoryPool::new());
+
 struct MemoryPool {
     pool: [u8; MEMORY_POOL_SIZE],
     alloc_ptr: usize,
 }
 
 impl MemoryPool{
+    const fn new() -> Self {
+        Self {
+            pool: [0u8; MEMORY_POOL_SIZE],
+            alloc_ptr: 0, // オフセット0から開始
+        }
+    }
+
     fn alloc_mem(&mut self, size: usize, alignment: usize, boundary: usize) -> Option<usize> {
+        // 絶対アドレスはここで初めて計算する
+        let pool_start = self.pool.as_ptr() as usize;
+        let mut current = pool_start + self.alloc_ptr;
+
         // alignmentの調整
         if alignment > 0{
-            self.alloc_ptr = ceil(self.alloc_ptr, alignment);
+            current = ceil(current, alignment);
         }
         // 4KBのページ境界を調整
         if boundary > 0 {
-            let next_boundary = ceil(self.alloc_ptr, boundary);
+            let next_boundary = ceil(current, boundary);
             if next_boundary < self.alloc_ptr + size {
-                self.alloc_ptr = next_boundary;
+                current = next_boundary;
             }
         }
 
         // 確保したpoolの範囲外に出ないかチェック
-        let pool_start = self.pool.as_ptr() as usize;
-        if pool_start + MEMORY_POOL_SIZE < self.alloc_ptr + size {
+        if pool_start + MEMORY_POOL_SIZE < current + size {
             return None
         }
 
-        // 調整されたアドレスを返し、確保するサイズ分加算する
-        let p = self.alloc_ptr;
-        self.alloc_ptr += size;
-        Some(p)
+        // 調整されたアドレスを返し、オフセットとして保存
+        self.alloc_ptr = current - pool_start + size;
+        Some(current)
     }
 
     pub fn alloc_array<T>(&mut self, num_obj: usize, alignment: usize, boundary: usize) -> Option<*const T> {
