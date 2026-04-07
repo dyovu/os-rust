@@ -18,7 +18,7 @@ use crate::usb::endpoint::EndpointID;
  */
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
-struct TRB {
+pub struct TRB {
     parameter: u64,
     status: u32,
     cycle_bit: B1,

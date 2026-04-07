@@ -6,6 +6,9 @@
 
 use modular_bitfield::prelude::*;
 
+use crate::usb::endpoint::EndpointID;
+use crate::usb::xhci::trb::TRB;
+
 // ================================================================
 // SlotContext
 // ================================================================
@@ -93,11 +96,11 @@ pub union EndpointContext {
 // ================================================================
 #[derive(Copy, Clone)]
 pub struct DeviceContextIndex {
-    pub value: i32,
+    pub value: u8,
 }
 
 impl DeviceContextIndex {
-    pub fn new(dci: i32) -> Self {
+    pub fn new(dci: u8) -> Self {
         Self { value: dci }
     }
 
@@ -105,7 +108,7 @@ impl DeviceContextIndex {
         Self { value: ep_id.address() }
     }
 
-    pub fn from_endpoint_num(ep_num: i32, dir_in: bool) -> Self {
+    pub fn from_endpoint_num(ep_num: u8, dir_in: bool) -> Self {
         let direction = if ep_num == 0 { 1 } else if dir_in { 1 } else { 0 };
         Self { value: 2 * ep_num + direction }
     }
