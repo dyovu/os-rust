@@ -21,10 +21,9 @@ fn mask_bits(ptr: usize , mask: usize) -> usize{
     addr & !(mask -1)
 }
 
-// ================================================================
 // USB関連のためのヒープ領域
-// ================================================================
-static MEMORY_POOL:Mutex<MemoryPool> = Mutex::new(MemoryPool::new());
+// static 変数はメモリ上に固定配置される
+pub static MEMORY_POOL:Mutex<MemoryPool> = Mutex::new(MemoryPool::new());
 
 struct MemoryPool {
     pool: [u8; MEMORY_POOL_SIZE],
