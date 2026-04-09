@@ -25,7 +25,7 @@ fn mask_bits(ptr: usize , mask: usize) -> usize{
 // static 変数はメモリ上に固定配置される
 pub static MEMORY_POOL:Mutex<MemoryPool> = Mutex::new(MemoryPool::new());
 
-struct MemoryPool {
+pub struct MemoryPool {
     pool: [u8; MEMORY_POOL_SIZE],
     alloc_ptr: usize,
 }
@@ -65,9 +65,9 @@ impl MemoryPool{
         Some(current)
     }
 
-    pub fn alloc_array<T>(&mut self, num_obj: usize, alignment: usize, boundary: usize) -> Option<*const T> {
+    pub fn alloc_array<T>(&mut self, num_obj: usize, alignment: usize, boundary: usize) -> Option<*mut T> {
         if let Some(ptr) = self.alloc_mem(size_of::<T>()*num_obj, alignment, boundary) {
-            return Some(ptr as *const T)
+            return Some(ptr as *mut T)
         }else{
             return None
         }
