@@ -4,31 +4,53 @@
 // xHCIのMMRの定義に基づいた構造体の定義
 // ================================================================
 
+use core::ptr::{read_volatile, write_volatile};
+
+#[repr(C, packed)]
+pub struct MemMapRegister<T: Copy> {
+    value: T,
+}
+
+impl<T: Copy> MemMapRegister<T> {
+    pub fn read(&self) -> T {
+        // selfのアドレスをそのままMMIOアドレスとして扱い、volatile読み込み
+        unsafe { read_volatile(&raw const self.value) }
+    }
+
+    pub fn write(&mut self, value: T) {
+        unsafe { write_volatile(&raw mut self.value, value) }
+    }
+}
+
 #[repr(C)]
 #[allow(non_snake_case)] // xHCIの仕様と同じ名前にするため
 pub struct CapabilityRegisters {
-    pub CAPLENGTH: u8,
-    _reserved: u8,
-    HCIVERSION: u16,
-    pub HCSPARAMS1: u32,
-    HCSPARAMS2: u32,
-    HCSPARAMS3: u32,
-    HCCPARAMS1:u32,
-    DBOFF: u32,
-    RTSOFF: u32,
-    HCCPARAMS2: u32,
+    CAPLENGTH: MemMapRegister<u8>,
+    _reserved: MemMapRegister<u8>,
+    HCIVERSION: MemMapRegister<u16>,
+    HCSPARAMS1: MemMapRegister<u32>,
+    HCSPARAMS2: MemMapRegister<u32>,
+    HCSPARAMS3: MemMapRegister<u32>,
+    HCCPARAMS1: MemMapRegister<u32>,
+    DBOFF: MemMapRegister<u32>,
+    RTSOFF: MemMapRegister<u32>,
+    HCCPARAMS2: MemMapRegister<u32>,
 }
 
 #[repr(C)]
 #[allow(non_snake_case)]
 pub struct OperationalRegisters{
-    USBCMD: u32,
-    USBSTS: u32,
-    PAGESIZE: u32,
+    USBCMD: MemMapRegister<u32>,
+    USBSTS: MemMapRegister<u32>,
+    PAGESIZE: MemMapRegister<u32>,
     _reserved1: [u8; 8],
-    DNCTRL: u32,
-    CRCR: u64,
+    DNCTRL: MemMapRegister<u32>,
+    CRCR: MemMapRegister<u64>,
     _reserved2: [u8; 16],
-    DCBAAP: u64,
-    CONFIG: u32,
+    DCBAAP: MemMapRegister<u64>,
+    CONFIG: MemMapRegister<u32>,
+}
+
+pub struct InterrupterRegisterSet{
+
 }
