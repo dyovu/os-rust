@@ -5,3 +5,4 @@ pub mod device_manager;
 pub mod registers;
 pub mod context;
 pub mod trb;
+pub mod ring;

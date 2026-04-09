@@ -200,7 +200,7 @@ impl StatusStageTRB{
  */
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
-struct LinkTRB {
+pub struct LinkTRB {
     #[skip] __: B4,
     ring_segment_pointer: B60,
 
@@ -208,7 +208,7 @@ struct LinkTRB {
     interrupter_target: B10,
 
     cycle_bit: B1,
-    toggle_cycle: B1,
+    pub toggle_cycle: B1,
     #[skip] __: B2,
     chain_bit: B1,
     interrupt_on_completion: B1,
