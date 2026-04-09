@@ -6,18 +6,20 @@
 
 use crate::usb::memory_alloc::MEMORY_POOL;
 use crate::usb::xhci::trb::{TRB, LinkTRB};
+use crate::usb::xhci::registers::{InterrupterRegisterSet};
 
 
- struct Ring{
+struct Ring{
     buf: *mut TRB,
     buf_size: usize,
     cycle_bit: bool,
     write_index: usize, // リングの中で次に書き込む位置
- }
+}
 
- impl Ring{
+impl Ring{
     pub fn new(buf_size: usize) -> Self{
-        let buf: *mut TRB = match MEMORY_POOL.lock().alloc_array::<TRB>(buf_size, 64, 32*1024){
+        // boundaryの指定はTRBのbufferが64KBの境界を跨いじゃダメという規定がある
+        let buf: *mut TRB = match MEMORY_POOL.lock().alloc_array::<TRB>(buf_size, 64, 64*1024){
             Some(pool) => {
                 pool
             }
@@ -60,7 +62,7 @@ use crate::usb::xhci::trb::{TRB, LinkTRB};
     // トレイトを定義して全てのTRB型にそれを実装しなキュいけないから
     pub fn push<TRBType>(&mut self, trb: &[u8; 16]) -> *mut TRB {
         let trb_ptr: *mut TRB = unsafe { self.buf.add(self.write_index) };
-        
+
         self.copy_to_last(&trb);
         self.write_index += 1;
 
@@ -74,19 +76,75 @@ use crate::usb::xhci::trb::{TRB, LinkTRB};
         }
         trb_ptr
     }
- }
+}
 
 #[repr(C, align(64))]
 #[derive(Copy, Clone)]
- struct EventRingSegmentTableEntry{
+struct EventRingSegmentTableEntry{
     ring_segment_base_address: u64,
 
     ring_segment_size: u16,
     _reserved1: u16,
 
     _reserved2: u32,
- }
+}
 
 struct EventRing{
+    buf: *mut TRB,
+    buf_size: usize,
+    cycle_bit: bool,
+    erst: *mut EventRingSegmentTableEntry,
+    interrupter: *mut InterrupterRegisterSet,
+}
+
+impl EventRing{
+    pub fn new(buf_size: usize, interrupter: *mut InterrupterRegisterSet) -> Self{
+        let cycle_bit = true;
+
+        let buf: *mut TRB = match MEMORY_POOL.lock().alloc_array::<TRB>(buf_size, 64, 64*1024){
+            Some(pool) => {
+                pool
+            }
+            None => {
+                loop{}
+            }
+        };
+
+        let erst = match MEMORY_POOL.lock().alloc_array::<EventRingSegmentTableEntry>(1, 64, 64*1024){
+            Some(pool) => {
+                pool
+            }
+            None => {
+                loop{}
+            }
+        };
+
+        unsafe {
+            // erstの0番目のエントリにbufの先頭アドレスとサイズを書き込む
+            (*erst).ring_segment_base_address = buf as u64;
+            (*erst).ring_segment_size = buf_size as u16;
+        }
+
+        unsafe {
+            (*interrupter).ERSTBA
+        }
+        
+        
+        Self{
+            buf,
+            buf_size,
+            cycle_bit,
+            erst,
+            interrupter,
+        }
+
+    }
+
+    pub fn write_deque_pointer() -> *mut TRB{
+
+    }
+
+    pub fn read_deque_pointer() {
+    }
 
 }
