@@ -58,9 +58,10 @@ use crate::usb::xhci::trb::{TRB, LinkTRB};
     // 
     // 任意の型を受け取ってバイト列にしようとすると
     // トレイトを定義して全てのTRB型にそれを実装しなキュいけないから
-    pub fn push<TRBType>(&mut self, trb: &[u8; 16]) {
+    pub fn push<TRBType>(&mut self, trb: &[u8; 16]) -> *mut TRB {
+        let trb_ptr: *mut TRB = unsafe { self.buf.add(self.write_index) };
+        
         self.copy_to_last(&trb);
-
         self.write_index += 1;
 
         if self.write_index == self.buf_size - 1{
@@ -71,7 +72,7 @@ use crate::usb::xhci::trb::{TRB, LinkTRB};
             self.write_index = 0;
             self.cycle_bit = !self.cycle_bit;
         }
-
+        trb_ptr
     }
  }
 
