@@ -8,7 +8,7 @@
 #[allow(non_snake_case)] // xHCIの仕様と同じ名前にするため
 pub struct CapabilityRegisters {
     pub CAPLENGTH: u8,
-    Rsvd: u8,
+    _reserved: u8,
     HCIVERSION: u16,
     pub HCSPARAMS1: u32,
     HCSPARAMS2: u32,

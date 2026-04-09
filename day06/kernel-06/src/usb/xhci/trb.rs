@@ -20,7 +20,9 @@ use crate::usb::endpoint::EndpointID;
 #[derive(Debug, Copy, Clone)]
 pub struct TRB {
     parameter: u64,
+    
     status: u32,
+
     cycle_bit: B1,
     evaluate_next_trb: B1,
     #[skip] __: u8,
