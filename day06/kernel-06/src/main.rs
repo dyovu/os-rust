@@ -284,7 +284,7 @@ pub extern "sysv64" fn _start(
     };
 
     let xhc_controller = Controller::new(xhc_mmio_base);
-    printk!("max_ports: {}", xhc_controller.max_ports);
+    // printk!("max_ports: {}", xhc_controller.max_ports);
 
     if 0x8086 == pci::read_vendor_id_from_dev(&xhc_device){
         pci::switch_ehci2xhci(&xhc_device);
