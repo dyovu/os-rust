@@ -13,7 +13,7 @@ struct Ring{
     buf: *mut TRB,
     buf_size: usize,
     cycle_bit: bool,
-    write_index: usize, // リングの中で次に書き込む位置
+    write_index: usize, // リングの中で次に書き込む位置 (offset)
 }
 
 impl Ring{
@@ -60,7 +60,7 @@ impl Ring{
     // 
     // 任意の型を受け取ってバイト列にしようとすると
     // トレイトを定義して全てのTRB型にそれを実装しなキュいけないから
-    pub fn push<TRBType>(&mut self, trb: &[u8; 16]) -> *mut TRB {
+    pub fn push(&mut self, trb: &[u8; 16]) -> *mut TRB {
         let trb_ptr: *mut TRB = unsafe { self.buf.add(self.write_index) };
 
         self.copy_to_last(&trb);
@@ -89,12 +89,12 @@ struct EventRingSegmentTableEntry{
     _reserved2: u32,
 }
 
-struct EventRing{
-    buf: *mut TRB,
+struct EventRing {
+    buf_addr: usize,
     buf_size: usize,
     cycle_bit: bool,
-    erst: *mut EventRingSegmentTableEntry,
-    interrupter: *mut InterrupterRegisterSet,
+    erste_addr: usize,
+    interrupter_addr: usize,
 }
 
 impl EventRing{
@@ -110,7 +110,7 @@ impl EventRing{
             }
         };
 
-        let erst = match MEMORY_POOL.lock().alloc_array::<EventRingSegmentTableEntry>(1, 64, 64*1024){
+        let erste = match MEMORY_POOL.lock().alloc_array::<EventRingSegmentTableEntry>(1, 64, 64*1024){
             Some(pool) => {
                 pool
             }
@@ -119,32 +119,57 @@ impl EventRing{
             }
         };
 
-        unsafe {
-            // erstの0番目のエントリにbufの先頭アドレスとサイズを書き込む
-            (*erst).ring_segment_base_address = buf as u64;
-            (*erst).ring_segment_size = buf_size as u16;
-        }
-
-        unsafe {
-            (*interrupter).ERSTBA
-        }
-        
-        
-        Self{
-            buf,
+        let this = Self{
+            buf_addr: buf as usize,
             buf_size,
             cycle_bit,
-            erst,
-            interrupter,
+            erste_addr: erste as usize,
+            interrupter_addr: interrupter as usize,
+        };
+
+        unsafe {
+            // erstの0番目のエントリにbufの先頭アドレスとサイズを書き込む
+            (*erste).ring_segment_base_address = buf as u64;
+            (*erste).ring_segment_size = buf_size as u16;
         }
 
+        unsafe {
+            let mut erstsz = (*interrupter).ERSTSZ.read();
+            erstsz.set_event_ring_segment_table_size(1);
+            (*interrupter).ERSTSZ.write(erstsz);
+        }
+
+        // DequeuePointerをbufの先頭に設定
+        this.write_deque_pointer(this.buf_addr as *mut TRB);
+
+        // ERSTBAにerstのアドレスを書き込む
+        unsafe {
+            let mut erstba = (*interrupter).ERSTBA.read();
+            erstba.set_event_ring_segment_table_base_address(erste as u64);
+            (*interrupter).ERSTBA.write(erstba);
+        }
+
+        this
     }
 
-    pub fn write_deque_pointer() -> *mut TRB{
-
+    // usizeからInterrupterRegisterSetポインタへの変換
+    fn interrupter_ptr(&self) -> *mut InterrupterRegisterSet {
+        self.interrupter_addr as *mut InterrupterRegisterSet
     }
 
-    pub fn read_deque_pointer() {
+    pub fn read_deque_pointer(&self) -> *mut TRB { 
+        let erdp = unsafe{ (*self.interrupter_ptr()).ERDP.read() };
+        (erdp.event_ring_dequeue_pointer() << 4) as *mut TRB
     }
 
+    pub fn write_deque_pointer(&self, trb: *mut TRB){
+        let mut erdp = unsafe{ (*self.interrupter_ptr()).ERDP.read() };
+        erdp.set_event_ring_dequeue_pointer(trb as u64);
+        unsafe { (*self.interrupter_ptr()).ERDP.write(erdp); }
+    }
+
+    pub fn has_pending_event(&self) -> bool {
+        let trb = self.read_deque_pointer();
+        unsafe { (*trb).cycle_bit() == self.cycle_bit as u8 }
+    }
 }

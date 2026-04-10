@@ -23,7 +23,7 @@ pub struct TRB {
     
     status: u32,
 
-    cycle_bit: B1,
+    pub cycle_bit: B1,
     evaluate_next_trb: B1,
     #[skip] __: u8,
     trb_type : B6,
