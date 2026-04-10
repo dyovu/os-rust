@@ -14,19 +14,21 @@ use crate::usb::xhci::device_manager::{DeviceManager};
  */ 
 pub struct Controller {
     mmio_base: usize,
-    pub max_ports: u8,
+    op_base: usize,
+    max_ports: u8,
     device_manager: DeviceManager
 }
 
 impl Controller {
     pub fn new(mmio_base: usize) -> Self{
         let max_slots:usize = 8;
-        let max_ports = unsafe {
-            let hcsparams1 = (*(mmio_base as *const CapabilityRegisters)).HCSPARAMS1;
-            (hcsparams1 >> 24) as u8
+        let (max_ports, cap_len) = unsafe {
+            let cap = &*(mmio_base as *const CapabilityRegisters);
+            (cap.HCSPARAMS1.read().max_ports(), cap.CAPLENGTH.read())
         };
         Self{
             mmio_base,
+            op_base: mmio_base + cap_len as usize,
             max_ports,
             device_manager: DeviceManager::new(max_slots),
         }
@@ -42,7 +44,6 @@ impl Controller {
     }
 
     fn op_regs(&self) -> *mut OperationalRegisters {
-        let cap_len = unsafe { (*self.cap_regs()).CAPLENGTH };
-        (self.mmio_base + cap_len as usize) as *mut OperationalRegisters
+        self.op_base as *mut OperationalRegisters
     }
 }
