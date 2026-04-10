@@ -177,4 +177,21 @@ impl EventRing{
         let trb = self.read_deque_pointer();
         unsafe { (*trb).cycle_bit() == self.cycle_bit as u8 }
     }
+
+    pub fn pop(&mut self) {
+        let mut p = self.read_deque_pointer();
+
+        let segment_begin = self.buf_addr as *mut TRB;
+        let segment_end = unsafe { segment_begin.add(self.buf_size) };
+
+        p = unsafe { p.add(1) };
+        // 末尾に達したら先頭に戻りcycle_bitを反転
+        if p == segment_end { 
+            p = segment_begin;
+            self.cycle_bit = !self.cycle_bit;
+        }
+
+        // write_deque_pointerで新しい位置をレジスタに書き込む
+        self.write_deque_pointer(p);
+    }
 }
