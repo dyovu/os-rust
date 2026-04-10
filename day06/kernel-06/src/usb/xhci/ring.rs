@@ -10,7 +10,7 @@ use crate::usb::xhci::registers::{InterrupterRegisterSet};
 
 
 struct Ring{
-    buf: *mut TRB,
+    buf_addr: usize,
     buf_size: usize,
     cycle_bit: bool,
     write_index: usize, // リングの中で次に書き込む位置 (offset)
@@ -29,17 +29,22 @@ impl Ring{
         };
 
         Self{
-            buf,
+            buf_addr: buf as usize,
             buf_size,
             cycle_bit: true,  // 1つ前のbitと反転させることで、contollerが新しい書き込みかどうかを判断できるようにする
             write_index: 0,
         }
     }
 
+    // usizeからTRBポインタへの変換
+    fn trb_ptr(&self) -> *mut TRB {
+        self.buf_addr as *mut TRB
+    }
+
     fn copy_to_last(&mut self, data: &[u8; 16]){
         unsafe {
             // TRBポインタをu8ポインタとして解釈し直す
-            let dest = self.buf.add(self.write_index) as *mut u8;
+            let dest = self.trb_ptr().add(self.write_index) as *mut u8;
             
             // 最初の12バイトをそのままコピー
             core::ptr::copy_nonoverlapping(data.as_ptr(), dest, 12);
@@ -61,13 +66,13 @@ impl Ring{
     // 任意の型を受け取ってバイト列にしようとすると
     // トレイトを定義して全てのTRB型にそれを実装しなキュいけないから
     pub fn push(&mut self, trb: &[u8; 16]) -> *mut TRB {
-        let trb_ptr: *mut TRB = unsafe { self.buf.add(self.write_index) };
+        let trb_ptr: *mut TRB = unsafe { self.trb_ptr().add(self.write_index) };
 
-        self.copy_to_last(&trb);
+        self.copy_to_last(trb);
         self.write_index += 1;
 
         if self.write_index == self.buf_size - 1{
-            let mut link_trb = LinkTRB::initialize(self.buf);
+            let mut link_trb = LinkTRB::initialize(self.trb_ptr());
             link_trb.set_toggle_cycle(true as u8);
             self.copy_to_last(&link_trb.into_bytes());
 
