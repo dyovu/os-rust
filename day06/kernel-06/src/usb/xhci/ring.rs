@@ -9,7 +9,7 @@ use crate::usb::xhci::trb::{TRB, LinkTRB};
 use crate::usb::xhci::registers::{InterrupterRegisterSet};
 
 
-struct Ring{
+pub struct Ring{
     buf_addr: usize,
     buf_size: usize,
     cycle_bit: bool,
@@ -94,7 +94,7 @@ struct EventRingSegmentTableEntry{
     _reserved2: u32,
 }
 
-struct EventRing {
+pub struct EventRing {
     buf_addr: usize,
     buf_size: usize,
     cycle_bit: bool,

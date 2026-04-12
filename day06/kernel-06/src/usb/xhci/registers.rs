@@ -57,14 +57,14 @@ impl<T> ArrayWrapper<T> {
         self.len
     }
 
-    pub unsafe fn get(&self, index: usize) -> &T {
-        assert!(index < self.len);
-        &*self.ptr.add(index)
-    }
+    // pub unsafe fn get(&self, index: usize) -> &T {
+    //     assert!(index < self.len);
+    //     &*self.ptr.add(index)
+    // }
 
-    pub unsafe fn get_mut(&self, index: usize) -> &mut T {
+    pub unsafe fn get_mut(&self, index: usize) -> *mut T {
         assert!(index < self.len);
-        &mut *self.ptr.add(index)
+        self.ptr.add(index)
     }
 }
 
