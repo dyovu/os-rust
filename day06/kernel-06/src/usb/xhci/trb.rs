@@ -557,3 +557,38 @@ impl PortStatusChangeEventTRB {
         trb
     }
 }
+
+pub trait TrbTrait {
+    const TYPE: u8;
+}
+
+macro_rules! impl_trb_trait {
+    ($($t:ty),*) => {
+        $(impl TrbTrait for $t { const TYPE: u8 = <$t>::TYPE; })*
+    }
+}
+
+impl_trb_trait!(
+    NormalTRB,
+    SetupStageTRB,
+    DataStageTRB,
+    StatusStageTRB,
+    LinkTRB,
+    NoOpTRB,
+    EnableSlotCommandTRB,
+    AddressDeviceCommandTRB,
+    ConfigureEndpointCommandTRB,
+    StopEndpointCommandTRB,
+    NoOpCommandTRB,
+    TransferEventTRB,
+    CommandCompletionEventTRB,
+    PortStatusChangeEventTRB
+);
+
+pub unsafe fn trb_dynamic_cast<T: TrbTrait>(trb: *mut TRB) -> Option<&'static T> {
+    if (*trb).trb_type() == T::TYPE {
+        Some(&*(trb as *const T))
+    } else {
+        None
+    }
+}
