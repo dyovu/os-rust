@@ -121,10 +121,6 @@ pub struct DeviceContext {
     pub ep_contexts: [EndpointContext; 31],
 }
 
-impl DeviceContext {
-    
-}
-
 // ================================================================
 // InputContext
 // ================================================================
