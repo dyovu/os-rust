@@ -37,6 +37,37 @@ impl<T: Copy> MemMapRegister<T, ReadWrite> {
     }
 }
 
+// 連続したレジスタ群へ配列のようにアクセスするためのラッパー
+// 既にあるメモリ空間（ポインタ）を、配列のように [index] でアクセスできるようにする」ため
+
+pub struct ArrayWrapper<T> {
+    ptr: *mut T,
+    len: usize,
+}
+
+impl<T> ArrayWrapper<T> {
+    pub unsafe fn new(base_addr: usize, len: usize) -> Self {
+        Self {
+            ptr: base_addr as *mut T,
+            len,
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub unsafe fn get(&self, index: usize) -> &T {
+        assert!(index < self.len);
+        &*self.ptr.add(index)
+    }
+
+    pub unsafe fn get_mut(&self, index: usize) -> &mut T {
+        assert!(index < self.len);
+        &mut *self.ptr.add(index)
+    }
+}
+
 // ================================================================
 // CapabilityRegisters
 // ================================================================
