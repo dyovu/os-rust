@@ -4,7 +4,7 @@
 // xHCI ホストコントローラ制御用クラス．
 // ================================================================
 
-use crate::usb::xhci::registers::{CapabilityRegisters, OperationalRegisters, InterrupterRegisterSet, ArrayWrapper};
+use crate::usb::xhci::registers::{CapabilityRegisters, OperationalRegisters, InterrupterRegisterSet, ExtendedRegisterList, UsblegsupRegister, ArrayWrapper};
 use crate::usb::xhci::device_manager::{DeviceManager};
 use crate::usb::xhci::ring::{Ring, EventRing};
 
@@ -23,7 +23,7 @@ pub struct Controller {
 }
 
 impl Controller {
-    const DeviceSize: usize = 8;
+    const DEVICE_SIZE: usize = 8;
 
     pub fn new(mmio_base: usize) -> Self {
         let (max_ports, cap_len, rtsoff) = unsafe {
@@ -52,7 +52,7 @@ impl Controller {
     }
 
     pub fn initialize(&self) -> Result<(), ()>{
-        
+        self.request_HC_ownership();
         Ok(())
     }
 
@@ -62,5 +62,34 @@ impl Controller {
 
     fn op_regs(&self) -> *mut OperationalRegisters {
         self.op_base as *mut OperationalRegisters
+    }
+
+    fn request_HC_ownership(&self){
+        let hccp = unsafe{ (*self.cap_regs()).HCCPARAMS1.read().xhci_extended_capabilities_pointer() as usize };
+        let ext_regs = unsafe{ ExtendedRegisterList::new(self.mmio_base, hccp) };
+
+        let ext_usblegsup = match ext_regs.iter().find(|&x| unsafe{ (*x).reg.read().capability_id() ==1 }){
+            Some(t) => t,
+            None => {
+                loop{}
+            }
+        };
+
+        let usb_leg_reg_ptr  = (ext_usblegsup as usize) as * mut UsblegsupRegister;
+        let usb_leg_reg = unsafe{ &*usb_leg_reg_ptr };
+        let mut r = usb_leg_reg.reg.read();
+
+        if r.hc_os_owned_semaphore() == 1{
+            return
+        }
+
+        // OSがホストコントローラの権限を持つように設定
+        r.set_hc_os_owned_semaphore(1);
+        unsafe{ (*usb_leg_reg_ptr).reg.write(r) };
+        
+        // BIOS
+        while r.hc_os_owned_semaphore() == 0 || r.hc_bios_owned_semaphore() == 1{
+            r = unsafe { (*usb_leg_reg_ptr).reg.read() };
+        }
     }
 }

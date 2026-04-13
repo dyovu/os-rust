@@ -471,5 +471,5 @@ pub struct Usblegsup {
 }
 
 pub struct UsblegsupRegister {
-    reg: MemMapRegister<Usblegsup, ReadWrite>,
+    pub reg: MemMapRegister<Usblegsup, ReadWrite>,
 }
