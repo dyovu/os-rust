@@ -391,6 +391,8 @@ impl DoorbellRegister {
 // ExtendedRegister
 // ================================================================
 
+// 拡張レジスタの共通ヘッダ
+// capability_id, next_pointer, valueのフィールドを持つ
 #[bitfield(bits = 32)]
 #[derive(Copy, Clone)]
 pub struct ExtendedRegisterBitmap {
@@ -399,11 +401,58 @@ pub struct ExtendedRegisterBitmap {
     pub value: B16,
 }
 
-// 拡張レジスタの共通ヘッダ
-// capability_id, next_pointer, valueのフィールドを持つ
 #[repr(C)]
 pub struct ExtendedRegister {
     pub reg: MemMapRegister<ExtendedRegisterBitmap, ReadWrite>,
+}
+
+// 「今どこを見ているか」という状態を持つイテレータ用構造体
+pub struct ExtendedRegisterIter {
+    current: Option<*mut ExtendedRegister>,
+}
+
+impl Iterator for ExtendedRegisterIter {
+    type Item = *mut ExtendedRegister;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // current が None なら即終了（? がNoneを返す）
+        let current_ptr = self.current?;
+
+        let next_offset = unsafe { (*current_ptr).reg.read().next_pointer() } as usize;
+
+        // 次のポインタを計算してから current を更新
+        self.current = if next_offset == 0 {
+            None
+        } else {
+            // *mut u32 にキャストして add() することで next_offset×4 バイト進む
+            Some(unsafe {
+                (current_ptr as *mut u32).add(next_offset) as *mut ExtendedRegister
+            })
+        };
+
+        // current を更新した後で、今いた場所を返す
+        Some(current_ptr)
+    }
+}
+
+pub struct ExtendedRegisterList {
+    first: Option<*mut ExtendedRegister>,
+}
+
+impl ExtendedRegisterList {
+    pub unsafe fn new(mmio_base: usize, hccp_offset: usize) -> Self {
+        Self {
+            first: if hccp_offset == 0 {
+                None
+            } else {
+                Some((mmio_base + hccp_offset * 4) as *mut ExtendedRegister)
+            },
+        }
+    }
+
+    pub fn iter(&self) -> ExtendedRegisterIter {
+        ExtendedRegisterIter { current: self.first }
+    }
 }
 
 // ================================================================
