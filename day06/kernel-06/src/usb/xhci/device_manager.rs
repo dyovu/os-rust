@@ -40,4 +40,8 @@ impl DeviceManager{
             device_context_addr,
         }
     }
+
+    pub fn device_context_addr(&self) -> usize{
+        self.device_context_addr
+    }
 }
