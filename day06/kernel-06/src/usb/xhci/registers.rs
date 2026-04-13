@@ -214,7 +214,8 @@ pub struct Crcr {
 #[derive(Copy, Clone)]
 pub struct Dcbaap {
     #[skip] __: B6,
-    pub device_context_base_address_array_pointer: B58,
+    pub device_context_base_address_array_pointer: B26,
+    #[skip] __: B32,
 }
 
 #[bitfield(bits = 32)]
