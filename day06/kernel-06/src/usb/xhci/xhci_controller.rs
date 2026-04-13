@@ -4,7 +4,7 @@
 // xHCI ホストコントローラ制御用クラス．
 // ================================================================
 
-use crate::usb::xhci::registers::{CapabilityRegisters, OperationalRegisters, InterrupterRegisterSet, ExtendedRegisterList, UsblegsupRegister, ArrayWrapper};
+use crate::usb::xhci::registers::{CapabilityRegisters, OperationalRegisters, InterrupterRegisterSet, ExtendedRegisterList, UsblegsupRegister, Dcbaap, ArrayWrapper};
 use crate::usb::xhci::device_manager::{DeviceManager};
 use crate::usb::xhci::ring::{Ring, EventRing};
 
@@ -23,7 +23,7 @@ pub struct Controller {
 }
 
 impl Controller {
-    const DEVICE_SIZE: usize = 8;
+    const DEVICE_SIZE: u8 = 8;
 
     pub fn new(mmio_base: usize) -> Self {
         let (max_ports, cap_len, rtsoff) = unsafe {
@@ -53,6 +53,67 @@ impl Controller {
 
     pub fn initialize(&self) -> Result<(), ()>{
         self.request_HC_ownership();
+
+        // usbコマンドの設定
+        let mut usbcmd = unsafe{ (*self.op_regs()).USBCMD.read() };
+        usbcmd.set_interrupter_enable(false as u8);
+        usbcmd.set_host_system_error_enable(false as u8);
+        usbcmd.set_enable_wrap_event(false as u8);
+
+        // usbcmdを書き込む前に、ホストコントローラが停止してなかったら止める
+        if unsafe{ (*self.op_regs()).USBSTS.read().host_controller_halted() } == 0{
+            usbcmd.set_run_stop(false as u8);
+        }
+
+        // 設定を書き込む
+        unsafe{ (*self.op_regs()).USBCMD.write(usbcmd) };
+        // 動き出すまで待つ
+        while unsafe{ (*self.op_regs()).USBSTS.read().host_controller_halted() } == 0{
+            continue
+        }
+
+        // 
+        let mut usbcmd = unsafe{ (*self.op_regs()).USBCMD.read() };
+        usbcmd.set_host_controller_reset(true as u8);
+        unsafe{ (*self.op_regs()).USBCMD.write(usbcmd) };
+
+        while unsafe{ (*self.op_regs()).USBCMD.read().host_controller_reset() } == 1 
+            || unsafe{ (*self.op_regs()).USBSTS.read().controller_not_ready() } == 1 {
+            continue
+        }
+
+        // MaxSlotsの設定
+        let mut config = unsafe{ (*self.op_regs()).CONFIG.read() };
+        config.set_max_device_slots_enabled(Controller::DEVICE_SIZE);
+        unsafe{ (*self.op_regs()).CONFIG.write(config) };
+
+        // 
+        let mut hcsparams2 = unsafe{ (*self.cap_regs()).HCSPARAMS2.read() };
+        /*
+         * あとで実装する
+         */
+
+        // DCBAAPにdevice contextのアドレスを設定する
+        let mut dcbaap = Dcbaap::new();
+        let addr = self.device_manager.device_context_addr() as u64;
+        dcbaap.set_device_context_base_address_array_pointer((addr >> 6) as u32);
+        unsafe { (*self.op_regs()).DCBAAP.write(dcbaap) };
+
+        //
+        let rtsoff = unsafe{ (*self.cap_regs()).RTSOFF.read().runtime_register_space_offset() as usize };
+        let primary_interrupter = unsafe {
+            ArrayWrapper::<InterrupterRegisterSet>::new(self.mmio_base + rtsoff + 0x20, 1024).get_mut(0)
+        };
+
+        let mut iman = unsafe{ (*primary_interrupter).IMAN.read() };
+        iman.set_interrupt_pending(true as u8);
+        iman.set_interrupt_enable(true as u8);
+        unsafe{ (*primary_interrupter).IMAN.write(iman) };
+
+        let mut usbcmd = unsafe{ (*self.op_regs()).USBCMD.read() };
+        usbcmd.set_interrupter_enable(true as u8);
+        unsafe{ (*self.op_regs()).USBCMD.write(usbcmd) };
+        
         Ok(())
     }
 
