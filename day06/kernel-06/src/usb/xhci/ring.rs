@@ -81,6 +81,14 @@ impl Ring{
         }
         trb_ptr
     }
+
+    pub fn buf_addr(&self) -> u64 {
+        self.buf_addr as u64
+    }
+
+    pub fn cycle_bit (&self) -> bool {
+        self.cycle_bit
+    }
 }
 
 #[repr(C, align(64))]
