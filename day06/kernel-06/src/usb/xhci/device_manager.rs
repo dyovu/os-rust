@@ -16,7 +16,7 @@ use crate::usb::memory_alloc::MEMORY_POOL;
 pub struct DeviceManager{
     max_slots: usize,
     devices: Vec<Option<Box<Device>>>,
-    device_context_addr: usize,
+    device_context_addr: usize, // DCBAAの先頭のアドレス
 }
 
 impl DeviceManager{
@@ -43,5 +43,9 @@ impl DeviceManager{
 
     pub fn device_context_addr(&self) -> usize{
         self.device_context_addr
+    }
+
+    pub fn set_device_context_addr(&mut self, addr: usize) {
+        self.device_context_addr = addr;
     }
 }
