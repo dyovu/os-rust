@@ -125,6 +125,8 @@ impl Controller {
         dcbaap.set_device_context_base_address_array_pointer((addr >> 6) as u32);
         unsafe { (*self.op_regs()).DCBAAP.write(dcbaap) };
 
+        self.register_command_ring();
+
         //
         let rtsoff = unsafe{ (*self.cap_regs()).RTSOFF.read().runtime_register_space_offset() as usize };
         let primary_interrupter = unsafe {
@@ -178,5 +180,15 @@ impl Controller {
         while r.hc_os_owned_semaphore() == 0 || r.hc_bios_owned_semaphore() == 1{
             r = unsafe { (*usb_leg_reg_ptr).reg.read() };
         }
+    }
+
+    fn register_command_ring(&self) {
+        let ring = &self.cr;
+        let mut crcr = unsafe { (*self.op_regs()).CRCR.read() };
+        crcr.set_ring_cycle_state(ring.cycle_bit() as u8);
+        crcr.set_command_stop(false as u8);
+        crcr.set_command_abort(false as u8);
+        crcr.set_command_ring_pointer(ring.buf_addr() >> 6);
+        unsafe { (*self.op_regs()).CRCR.write(crcr) };
     }
 }
