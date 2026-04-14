@@ -45,7 +45,5 @@ impl DeviceManager{
         self.device_context_addr
     }
 
-    pub fn set_device_context_addr(&mut self, addr: usize) {
-        self.device_context_addr = addr;
-    }
+
 }
