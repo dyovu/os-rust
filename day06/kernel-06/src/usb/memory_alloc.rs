@@ -38,7 +38,7 @@ impl MemoryPool{
         }
     }
 
-    fn alloc_mem(&mut self, size: usize, alignment: usize, boundary: usize) -> Option<usize> {
+    pub fn alloc_mem(&mut self, size: usize, alignment: usize, boundary: usize) -> Option<usize> {
         // 絶対アドレスはここで初めて計算する
         let pool_start = self.pool.as_ptr() as usize;
         let mut current = pool_start + self.alloc_ptr;
