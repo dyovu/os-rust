@@ -7,6 +7,8 @@
 use crate::usb::xhci::registers::{CapabilityRegisters, OperationalRegisters, InterrupterRegisterSet, ExtendedRegisterList, UsblegsupRegister, Dcbaap, ArrayWrapper};
 use crate::usb::xhci::device_manager::{DeviceManager};
 use crate::usb::xhci::ring::{Ring, EventRing};
+use crate::usb::xhci::context::DeviceContext;
+use crate::usb::memory_alloc::MEMORY_POOL;
 
 /*
  * 生ポインタを構造体に持たせるのは避ける
@@ -51,7 +53,7 @@ impl Controller {
         }
     }
 
-    pub fn initialize(&self) -> Result<(), ()>{
+    pub fn initialize(&mut self) -> Result<(), ()>{
         self.request_HC_ownership();
 
         // usbコマンドの設定
@@ -87,11 +89,33 @@ impl Controller {
         config.set_max_device_slots_enabled(Controller::DEVICE_SIZE);
         unsafe{ (*self.op_regs()).CONFIG.write(config) };
 
-        // 
+        // xHCIコントローラが内部処理のために使うプライベートなメモリ領域の確保と、レジスタへの割り当て
         let mut hcsparams2 = unsafe{ (*self.cap_regs()).HCSPARAMS2.read() };
-        /*
-         * あとで実装する
-         */
+        let max_scratchpad_buffers = hcsparams2.max_scratchpad_buffers_low() | ((hcsparams2.max_scratchpad_buffers_high() << 5));
+        if (max_scratchpad_buffers > 0) {
+            let scratchpad_buf_arr = match MEMORY_POOL.lock().alloc_array::<usize>(max_scratchpad_buffers as  usize, 64, 4*1024){
+                Some(t) => {
+                    t
+                }
+                None => {
+                    loop{}
+                }
+            };
+            // 2. 各バッファ本体を確保して配列に書き込む
+            for i in 0..max_scratchpad_buffers as usize {
+                let buf = match MEMORY_POOL.lock().alloc_mem(4096, 4096, 4096) {
+                    Some(t) => t,
+                    None => loop {},
+                };
+                unsafe { *(scratchpad_buf_arr as *mut usize).add(i) = buf };
+            }
+
+            // 3. DCBAA[0]にポインタ配列のアドレスを書く
+            unsafe {
+                self.device_manager.set_device_context_addr(*scratchpad_buf_arr);
+            };
+
+        }
 
         // DCBAAPにdevice contextのアドレスを設定する
         let mut dcbaap = Dcbaap::new();
@@ -113,7 +137,7 @@ impl Controller {
         let mut usbcmd = unsafe{ (*self.op_regs()).USBCMD.read() };
         usbcmd.set_interrupter_enable(true as u8);
         unsafe{ (*self.op_regs()).USBCMD.write(usbcmd) };
-        
+
         Ok(())
     }
 
