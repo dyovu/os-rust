@@ -107,12 +107,14 @@ impl Controller {
                     Some(t) => t,
                     None => loop {},
                 };
-                unsafe { *(scratchpad_buf_arr as *mut usize).add(i) = buf };
+                unsafe { *(scratchpad_buf_arr).add(i) = buf };
             }
 
             // 3. DCBAA[0]にポインタ配列のアドレスを書く
+            // device_context_addrはDCBAAのために確保したメモリ領域自体を示す。
+            // そのポインタが指す値自体を変更する
             unsafe {
-                self.device_manager.set_device_context_addr(*scratchpad_buf_arr);
+                *(self.device_manager.device_context_addr() as *mut usize) = scratchpad_buf_arr as usize;
             };
 
         }
