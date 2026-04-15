@@ -107,11 +107,11 @@ pub struct EventRing {
     buf_size: usize,
     cycle_bit: bool,
     erste_addr: usize,
-    interrupter_addr: usize,
+    interrupter_addr: Option<usize>,
 }
 
 impl EventRing{
-    pub fn new(buf_size: usize, interrupter: *mut InterrupterRegisterSet) -> Self{
+    pub fn new(buf_size: usize) -> Self{
         let cycle_bit = true;
 
         let buf: *mut TRB = match MEMORY_POOL.lock().alloc_array::<TRB>(buf_size, 64, 64*1024){
@@ -132,18 +132,23 @@ impl EventRing{
             }
         };
 
-        let this = Self{
+        Self{
             buf_addr: buf as usize,
             buf_size,
             cycle_bit,
             erste_addr: erste as usize,
-            interrupter_addr: interrupter as usize,
-        };
+            interrupter_addr: None,
+        }       
+    }
+
+    // xhciのinistialize()の中でコントローラのリセット後に呼び出す
+    pub fn initialize(&mut self, interrupter: *mut InterrupterRegisterSet) {
+        self.interrupter_addr = Some(interrupter as usize);
 
         unsafe {
             // erstの0番目のエントリにbufの先頭アドレスとサイズを書き込む
-            (*erste).ring_segment_base_address = buf as u64;
-            (*erste).ring_segment_size = buf_size as u16;
+            (*(self.erste_addr as *mut EventRingSegmentTableEntry)).ring_segment_base_address = self.buf_addr as u64;
+            (*(self.erste_addr as *mut EventRingSegmentTableEntry)).ring_segment_size = self.buf_size as u16;
         }
 
         unsafe {
@@ -153,21 +158,20 @@ impl EventRing{
         }
 
         // DequeuePointerをbufの先頭に設定
-        this.write_deque_pointer(this.buf_addr as *mut TRB);
+        self.write_deque_pointer(self.buf_addr as *mut TRB);
 
         // ERSTBAにerstのアドレスを書き込む
         unsafe {
             let mut erstba = (*interrupter).ERSTBA.read();
-            erstba.set_event_ring_segment_table_base_address(erste as u64);
+            erstba.set_event_ring_segment_table_base_address(self.erste_addr as u64);
             (*interrupter).ERSTBA.write(erstba);
         }
-
-        this
     }
 
-    // usizeからInterrupterRegisterSetポインタへの変換
+    // Option<usize>からInterrupterRegisterSetポインタへの変換
+    // Optionを剥がす
     fn interrupter_ptr(&self) -> *mut InterrupterRegisterSet {
-        self.interrupter_addr as *mut InterrupterRegisterSet
+        self.interrupter_addr.unwrap() as *mut InterrupterRegisterSet
     }
 
     pub fn read_deque_pointer(&self) -> *mut TRB { 
