@@ -28,32 +28,29 @@ impl Controller {
     const DEVICE_SIZE: u8 = 8;
 
     pub fn new(mmio_base: usize) -> Self {
-        let (max_ports, cap_len, rtsoff) = unsafe {
+        let (max_ports, cap_len) = unsafe {
             let cap = &*(mmio_base as *const CapabilityRegisters);
             (
                 cap.HCSPARAMS1.read().max_ports(),
                 cap.CAPLENGTH.read() as usize,
-                cap.RTSOFF.read().runtime_register_space_offset() as usize,
             )
         };
 
-        let primary_interrupter = unsafe {
-            ArrayWrapper::<InterrupterRegisterSet>::new(mmio_base + rtsoff + 0x20, 1024).get_mut(0)
-        };
-
-        let er = EventRing::new(32, primary_interrupter);
+        let cr = Ring::new(32);
+        let er = EventRing::new(32);
 
         Self {
             mmio_base,
             op_base: mmio_base + cap_len,
             max_ports,
             device_manager: DeviceManager::new(8),
-            cr: Ring::new(32),
+            cr,
             er,
         }
     }
 
     pub fn initialize(&mut self) -> Result<(), ()>{
+        // BIOSからホストコントローラの制御権をOSに移す
         self.request_HC_ownership();
 
         // usbコマンドの設定
@@ -63,33 +60,35 @@ impl Controller {
         usbcmd.set_enable_wrap_event(false as u8);
 
         // usbcmdを書き込む前に、ホストコントローラが停止してなかったら止める
+        // 設定を書き込む
         if unsafe{ (*self.op_regs()).USBSTS.read().host_controller_halted() } == 0{
             usbcmd.set_run_stop(false as u8);
         }
-
-        // 設定を書き込む
+        // 停止をじっこう。設定をwriteすることで実行する
         unsafe{ (*self.op_regs()).USBCMD.write(usbcmd) };
-        // 動き出すまで待つ
+        // 止まるまで待つ
         while unsafe{ (*self.op_regs()).USBSTS.read().host_controller_halted() } == 0{
             continue
         }
 
-        // 
+         // コントローラを停止後リセットをかける
         let mut usbcmd = unsafe{ (*self.op_regs()).USBCMD.read() };
         usbcmd.set_host_controller_reset(true as u8);
         unsafe{ (*self.op_regs()).USBCMD.write(usbcmd) };
 
+        // リセット完了とコントローラの準備完了を確認してから次へ進む
         while unsafe{ (*self.op_regs()).USBCMD.read().host_controller_reset() } == 1 
             || unsafe{ (*self.op_regs()).USBSTS.read().controller_not_ready() } == 1 {
             continue
         }
 
-        // MaxSlotsの設定
+        // デバイスのMaxSlotsの設定
         let mut config = unsafe{ (*self.op_regs()).CONFIG.read() };
         config.set_max_device_slots_enabled(Controller::DEVICE_SIZE);
         unsafe{ (*self.op_regs()).CONFIG.write(config) };
 
         // xHCIコントローラが内部処理のために使うプライベートなメモリ領域の確保と、レジスタへの割り当て
+        // コントローラ内部処理用のスクラッチパッドバッファを確保してDCBAA[0]に登録する
         let mut hcsparams2 = unsafe{ (*self.cap_regs()).HCSPARAMS2.read() };
         let max_scratchpad_buffers = hcsparams2.max_scratchpad_buffers_low() | ((hcsparams2.max_scratchpad_buffers_high() << 5));
         if (max_scratchpad_buffers > 0) {
@@ -125,19 +124,23 @@ impl Controller {
         dcbaap.set_device_context_base_address_array_pointer((addr >> 6) as u32);
         unsafe { (*self.op_regs()).DCBAAP.write(dcbaap) };
 
-        self.register_command_ring();
-
-        //
         let rtsoff = unsafe{ (*self.cap_regs()).RTSOFF.read().runtime_register_space_offset() as usize };
         let primary_interrupter = unsafe {
             ArrayWrapper::<InterrupterRegisterSet>::new(self.mmio_base + rtsoff + 0x20, 1024).get_mut(0)
         };
 
+        // CommandRingのアドレスをCRCRレジスタに登録する
+        // EventRingのバッファとERSTをプライマリインタラプタに登録する
+        self.register_command_ring();
+        self.er.initialize(primary_interrupter);
+
+        // プライマリインタラプタの割り込みを有効化
         let mut iman = unsafe{ (*primary_interrupter).IMAN.read() };
         iman.set_interrupt_pending(true as u8);
         iman.set_interrupt_enable(true as u8);
         unsafe{ (*primary_interrupter).IMAN.write(iman) };
 
+        // コントローラ全体の割り込みを有効化する
         let mut usbcmd = unsafe{ (*self.op_regs()).USBCMD.read() };
         usbcmd.set_interrupter_enable(true as u8);
         unsafe{ (*self.op_regs()).USBCMD.write(usbcmd) };
