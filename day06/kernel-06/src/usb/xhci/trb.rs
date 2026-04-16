@@ -36,7 +36,7 @@ pub struct TRB {
  */
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
-struct NormalTRB {
+pub struct NormalTRB {
     data_buffer_pointer: u64,
 
     trb_transfer_length: B17,
@@ -80,7 +80,7 @@ impl NormalTRB{
  */
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
-struct SetupStageTRB {
+pub struct SetupStageTRB {
     request_type: u8,
     request: u8,
     value: u16,
@@ -123,7 +123,7 @@ impl SetupStageTRB{
  */
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
-struct DataStageTRB {
+pub struct DataStageTRB {
     data_buffer_pointer: u64,
 
     trb_transfer_length: B17,
@@ -167,7 +167,7 @@ impl DataStageTRB{
  */
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
-struct StatusStageTRB {
+pub struct StatusStageTRB {
     #[skip] __: u64,
 
     #[skip] __: B22,
@@ -242,7 +242,7 @@ impl LinkTRB{
  */
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
-struct NoOpTRB {
+pub struct NoOpTRB {
     #[skip] __: u64,
 
     #[skip] __: B22,
@@ -274,7 +274,7 @@ impl NoOpTRB{
  */
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
-struct EnableSlotCommandTRB {
+pub struct EnableSlotCommandTRB {
     #[skip] __: u32,
 
     #[skip] __: u32,
@@ -304,7 +304,7 @@ impl EnableSlotCommandTRB{
  */
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
-struct AddressDeviceCommandTRB {
+pub struct AddressDeviceCommandTRB {
     #[skip] __: B4,
     input_context_pointer: B60,
 
@@ -344,7 +344,7 @@ impl AddressDeviceCommandTRB {
  */
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
-struct ConfigureEndpointCommandTRB {
+pub struct ConfigureEndpointCommandTRB {
     #[skip] __: B4,
     input_context_pointer: B60,
 
@@ -384,7 +384,7 @@ impl ConfigureEndpointCommandTRB {
  */
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
-struct StopEndpointCommandTRB {
+pub struct StopEndpointCommandTRB {
     #[skip] __: u32,
 
     #[skip] __: u32,
@@ -422,7 +422,7 @@ impl StopEndpointCommandTRB {
  */
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
-struct NoOpCommandTRB {
+pub struct NoOpCommandTRB {
     #[skip] __: u32,
 
     #[skip] __: u32,
@@ -451,7 +451,7 @@ impl NoOpCommandTRB {
  */
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
-struct TransferEventTRB {
+pub struct TransferEventTRB {
     trb_pointer: u64,
 
     trb_transfer_length: B24,
@@ -495,7 +495,7 @@ impl TransferEventTRB {
  */
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
-struct CommandCompletionEventTRB {
+pub struct CommandCompletionEventTRB {
     #[skip] __: B4,
     command_trb_pointer: B60,
 
@@ -533,7 +533,7 @@ impl CommandCompletionEventTRB {
  */
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
-struct PortStatusChangeEventTRB {
+pub struct PortStatusChangeEventTRB {
     #[skip] __: B24,
     port_id: u8,
 
