@@ -4,7 +4,7 @@
 // xHCI ホストコントローラ制御用クラス．
 // ================================================================
 
-use crate::usb::xhci::registers::{CapabilityRegisters, OperationalRegisters, InterrupterRegisterSet, ExtendedRegisterList, UsblegsupRegister, Dcbaap, ArrayWrapper};
+use crate::usb::xhci::registers::{CapabilityRegisters, OperationalRegisters, InterrupterRegisterSet, ExtendedRegisterList, UsblegsupRegister, DoorbellRegister, Dcbaap, ArrayWrapper};
 use crate::usb::xhci::device_manager::{DeviceManager};
 use crate::usb::xhci::ring::{Ring, EventRing};
 use crate::usb::xhci::context::DeviceContext;
@@ -148,7 +148,7 @@ impl Controller {
         Ok(())
     }
 
-    pub fn run(&self) {
+    pub fn run(&self) -> Result<(), ()> {
         let mut usbcmd = unsafe{ (*self.op_regs()).USBCMD.read() };
         usbcmd.set_run_stop(true as u8);
         unsafe{ (*self.op_regs()).USBCMD.write(usbcmd) };
@@ -157,6 +157,19 @@ impl Controller {
         while unsafe{ (*self.op_regs()).USBCMD.read().run_stop() } == 0{
             continue
         }
+        Ok(())
+    }
+
+    pub fn configure_port(&self) {
+
+    }
+
+    pub fn configure_endpoints(&self) {
+
+    }
+
+    pub fn process_event(&self) {
+
     }
 
     fn cap_regs(&self) -> *const CapabilityRegisters{
@@ -165,6 +178,14 @@ impl Controller {
 
     fn op_regs(&self) -> *mut OperationalRegisters {
         self.op_base as *mut OperationalRegisters
+    }
+
+    fn doorbell_register(&self, index: u8) -> *mut DoorbellRegister{
+        let dboff= unsafe{ (*self.cap_regs()).DBOFF.read().doorbell_array_offset() as usize };
+        let primary_doorbell_reg = unsafe {
+            ArrayWrapper::<DoorbellRegister>::new(self.mmio_base + dboff + 0x20, 256).get_mut(0)
+        };
+        primary_doorbell_reg
     }
 
     fn request_HC_ownership(&self){
