@@ -45,5 +45,11 @@ impl DeviceManager{
         self.device_context_addr
     }
 
-
+    pub fn find_by_slot(&self, slot_id: usize) -> Option<&Device>{
+        if slot_id > self.max_slots {
+            return None
+        }
+        let dev = self.devices[slot_id].as_deref();
+        dev
+    }
 }
