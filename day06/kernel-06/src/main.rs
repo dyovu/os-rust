@@ -294,12 +294,19 @@ pub extern "sysv64" fn _start(
         Ok(()) => {
 
         }
-        Err(e) => {
+        Err(()) => {
 
         }
     }
 
-    xhc_controller.run();
+    match xhc_controller.run(){
+        Ok(()) => {
+
+        }
+        Err(()) => {
+
+        }
+    }
 
     loop {}
 }
