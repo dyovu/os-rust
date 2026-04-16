@@ -8,8 +8,20 @@ use crate::usb::xhci::registers::{CapabilityRegisters, OperationalRegisters, Int
 use crate::usb::xhci::device_manager::{DeviceManager};
 use crate::usb::xhci::ring::{Ring, EventRing};
 use crate::usb::xhci::context::DeviceContext;
+use crate::usb::xhci::trb::*;
 use crate::usb::memory_alloc::MEMORY_POOL;
 
+ #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+enum ConfigPhase {
+    NotConnected,
+    WaitingAddressed,
+    ResettingPort,
+    EnablingSlot,
+    AddressingDevice,
+    InitializingDevice,
+    ConfiguringEndpoints,
+    Configured,
+}
 /*
  * 生ポインタを構造体に持たせるのは避ける
  * 生ポインタはライフタイムを持たない
@@ -22,6 +34,9 @@ pub struct Controller {
     device_manager: DeviceManager,
     cr: Ring,
     er: EventRing,
+
+    port_config_phase: [ConfigPhase; 256],
+    addressing_port: u8,
 }
 
 impl Controller {
@@ -46,6 +61,8 @@ impl Controller {
             device_manager: DeviceManager::new(8),
             cr,
             er,
+            port_config_phase: [ConfigPhase::NotConnected; 256],
+            addressing_port: 0,
         }
     }
 
@@ -168,8 +185,21 @@ impl Controller {
 
     }
 
-    pub fn process_event(&self) {
+    pub fn process_event(&mut self) {
+        if self.er.has_pending_event(){
+            return 
+        }
 
+        let trb = self.er.read_deque_pointer();
+        if let Some(transfer_trb) = unsafe{ trb_dynamic_cast::<TransferEventTRB>(trb) }{
+            self.on_event_transfer();
+        } else if let Some(port_status_change_trb) = unsafe{ trb_dynamic_cast::<PortStatusChangeEventTRB>(trb) }{
+            self.on_event_ptc();
+        } else if let Some(command_completion_trb) = unsafe{ trb_dynamic_cast::<CommandCompletionEventTRB>(trb) }{
+            self.on_event_cc();
+        }
+
+        self.er.pop();
     }
 
     fn cap_regs(&self) -> *const CapabilityRegisters{
@@ -225,5 +255,17 @@ impl Controller {
         crcr.set_command_abort(false as u8);
         crcr.set_command_ring_pointer(ring.buf_addr() >> 6);
         unsafe { (*self.op_regs()).CRCR.write(crcr) };
+    }
+
+    fn on_event_transfer(&self){
+
+    }
+
+    fn on_event_ptc(&self){
+
+    }
+
+    fn on_event_cc(&self){
+
     }
 }
