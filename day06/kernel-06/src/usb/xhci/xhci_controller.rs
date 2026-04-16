@@ -148,6 +148,17 @@ impl Controller {
         Ok(())
     }
 
+    pub fn run(&self) {
+        let mut usbcmd = unsafe{ (*self.op_regs()).USBCMD.read() };
+        usbcmd.set_run_stop(true as u8);
+        unsafe{ (*self.op_regs()).USBCMD.write(usbcmd) };
+        unsafe{ (*self.op_regs()).USBCMD.read() };
+
+        while unsafe{ (*self.op_regs()).USBCMD.read().run_stop() } == 0{
+            continue
+        }
+    }
+
     fn cap_regs(&self) -> *const CapabilityRegisters{
         self.mmio_base as *const CapabilityRegisters
     }

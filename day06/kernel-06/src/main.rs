@@ -299,5 +299,7 @@ pub extern "sysv64" fn _start(
         }
     }
 
+    xhc_controller.run();
+
     loop {}
 }
