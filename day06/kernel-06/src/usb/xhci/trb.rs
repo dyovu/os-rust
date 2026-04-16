@@ -464,7 +464,7 @@ pub struct TransferEventTRB {
     trb_type: B6,
     endpoint_id: B5,
     #[skip] __: B3,
-    slot_id: u8,
+    pub slot_id: u8,
 }
 
 impl TransferEventTRB {

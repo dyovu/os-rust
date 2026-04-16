@@ -192,11 +192,11 @@ impl Controller {
 
         let trb = self.er.read_deque_pointer();
         if let Some(transfer_trb) = unsafe{ trb_dynamic_cast::<TransferEventTRB>(trb) }{
-            self.on_event_transfer();
+            self.on_event_transfer(transfer_trb);
         } else if let Some(port_status_change_trb) = unsafe{ trb_dynamic_cast::<PortStatusChangeEventTRB>(trb) }{
-            self.on_event_ptc();
+            self.on_event_ptc(port_status_change_trb);
         } else if let Some(command_completion_trb) = unsafe{ trb_dynamic_cast::<CommandCompletionEventTRB>(trb) }{
-            self.on_event_cc();
+            self.on_event_cc(command_completion_trb);
         }
 
         self.er.pop();
@@ -257,15 +257,24 @@ impl Controller {
         unsafe { (*self.op_regs()).CRCR.write(crcr) };
     }
 
-    fn on_event_transfer(&self){
+    fn on_event_transfer(&self, trb: &TransferEventTRB){
+        let slot_id = trb.slot_id();
+        match self.device_manager.find_by_slot(slot_id as usize){
+            Some(dev) => {
+                dev.on_transfer_event_received();
+
+            }
+            None => {
+                loop{}
+            }
+        }
+    }
+
+    fn on_event_ptc(&self, trb: &PortStatusChangeEventTRB){
 
     }
 
-    fn on_event_ptc(&self){
-
-    }
-
-    fn on_event_cc(&self){
+    fn on_event_cc(&self, trb: &CommandCompletionEventTRB){
 
     }
 }
