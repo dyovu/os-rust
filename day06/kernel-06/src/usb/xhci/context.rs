@@ -14,7 +14,7 @@ use crate::usb::xhci::trb::TRB;
 // ================================================================
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
-pub struct SlotContextBits {
+pub struct SlotContext {
     pub route_string: B20,
     pub speed: B4,
     #[skip] __: B1,
@@ -37,19 +37,12 @@ pub struct SlotContextBits {
     pub slot_state: B5,
 }
 
-#[repr(C, packed)]
-#[derive(Copy, Clone)]
-pub union SlotContext {
-    pub dwords: [u32; 8],
-    pub bits: SlotContextBits,
-}
-
 // ================================================================
 // EndPointContext
 // ================================================================
 #[bitfield(bits = 160)]
 #[derive(Debug, Copy, Clone)]
-pub struct EndpointContextBits {
+pub struct EndpointContext {
     pub ep_state: B3,
     #[skip] __: B5,
     pub mult: B2,
@@ -74,7 +67,7 @@ pub struct EndpointContextBits {
     pub max_esit_payload_lo: B16,
 }
 
-impl EndpointContextBits {
+impl EndpointContext {
     pub fn transfer_ring_buffer(&self) -> *mut TRB {
         (self.tr_dequeue_pointer() << 4) as *mut TRB
     }
@@ -82,13 +75,6 @@ impl EndpointContextBits {
     pub fn set_transfer_ring_buffer(&mut self, buffer: *const TRB) {
         self.set_tr_dequeue_pointer((buffer as u64) >> 4);
     }
-}
-
-#[repr(C, packed)]
-#[derive(Copy, Clone)]
-pub union EndpointContext {
-    pub dwords: [u32; 8],
-    pub bits: EndpointContextBits,
 }
 
 // ================================================================
@@ -126,6 +112,7 @@ pub struct DeviceContext {
 // ================================================================
 #[repr(C, align(64))]
 #[derive(Copy, Clone)]
+#[derive(Default)]
 pub struct InputControlContext {
     pub drop_context_flags: u32,
     pub add_context_flags: u32,
@@ -145,6 +132,14 @@ pub struct InputContext {
 }
 
 impl InputContext {
+    pub fn new()-> Self{
+        Self{
+            input_control_context: InputControlContext::default(),
+            slot_context: SlotContext::new(),
+            ep_contexts: [EndpointContext::new(); 31],
+        }
+    }
+
     pub fn enable_slot_context(&mut self) -> &mut SlotContext {
         self.input_control_context.add_context_flags |= 1;
         &mut self.slot_context
