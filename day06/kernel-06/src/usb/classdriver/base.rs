@@ -1,10 +1,10 @@
  // ================================================================
-// @file usb/classdriver/base.hpp
+// @file usb/classdriver/base.rs
 //
 // USB デバイスクラス用のドライバのベースクラス．
 // ================================================================
 
 
-pub struct ClassDriver{
+pub trait ClassDriver{
 
 }

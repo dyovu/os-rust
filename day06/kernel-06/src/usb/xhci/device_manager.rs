@@ -7,7 +7,6 @@
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use alloc::vec;
 
 use crate::usb::xhci::device::Device;
 use crate::usb::xhci::context::DeviceContext;
