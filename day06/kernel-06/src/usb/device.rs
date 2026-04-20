@@ -13,6 +13,7 @@ use crate::usb::setupdata::SetupData;
 use crate::usb::memory_alloc::ArrayMap;
 use crate::usb::endpoint::{EndpointConfig, EndpointID};
 
+// 全ての規格のUSBが実装するべきメソッド
 pub trait UsbDevice {
     fn control_in(&mut self, ep_id: EndpointID, setup_data: SetupData, buf: &mut [u8]) -> Result<(), ()>;
     fn control_out(&mut self, ep_id: EndpointID, setup_data: SetupData, buf: &[u8]) -> Result<(), ()>;
@@ -21,12 +22,30 @@ pub trait UsbDevice {
 }
 
 // 共通フィールドの構造体
-pub struct CommonDevice {
+// 上記のUsbDeviceトレイトを実装した型をフィールドに持つ
+// これによりxHCIなどに固有な操作を行う
+pub struct Device<C: UsbDevice> {
+    pub controller: C,
     pub initialize_phase: u8,
     pub is_initialized: bool,
     pub class_drivers: [Option<Box<dyn ClassDriver>>; 16],
     pub buf: [u8; 256],
     pub ep_configs: [EndpointConfig; 16],
     pub num_ep_configs: usize,
-    pub event_waiters: ArrayMap<SetupData, Box<dyn ClassDriver>, 4>,
+    pub event_waiters: ArrayMap<SetupData, usize, 4>, // usizeはep_idのNumber()
+}
+
+impl <C: UsbDevice> Device<C>{
+    pub fn new(controller: C) -> Self{
+        Self{
+            controller,
+            initialize_phase: 1,
+            is_initialized: false,
+            class_drivers: core::array::from_fn(|_| None),
+            buf: [0; 256],
+            ep_configs: core::array::from_fn(|_| EndpointConfig::default()),
+            num_ep_configs: 0,
+            event_waiters: ArrayMap::new(),
+        }
+    }
 }
