@@ -107,6 +107,15 @@ pub struct DeviceContext {
     pub ep_contexts: [EndpointContext; 31],
 }
 
+impl DeviceContext{
+    pub fn new()-> Self{
+        Self{
+            slot_context: SlotContext::new(),
+            ep_contexts: [EndpointContext::new(); 31],
+        }
+    }
+}
+
 // ================================================================
 // InputContext
 // ================================================================
