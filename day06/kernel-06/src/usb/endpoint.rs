@@ -4,6 +4,8 @@
 // エンドポイント設定に関する機能
 // ================================================================
 
+use core::default;
+
 
 // デフォルトコントロールパイプ（エンドポイント0, IN）
 const DEFAULT_CONTROL_PIPE_ID: EndpointID = EndpointID::from_parts(0, true);
@@ -16,7 +18,15 @@ enum EndpointType{
     Interrupt = 3,
 }
 
+impl Default for EndpointType {
+    // usb/deviceの初期化の際に呼ばれる
+    fn default() -> Self {
+        EndpointType::Control
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
+#[derive(Default)]
 pub struct EndpointID{
     addr: u8,
 }
@@ -54,9 +64,14 @@ impl EndpointID{
     
 }
 
+#[derive(Default)]
 pub struct EndpointConfig{
     ep_id: EndpointID,
     ep_type: EndpointType,
     max_packet_size: i32,  // エンドポイントの最大パケットサイズ（バイト）
     interval: i32, // このエンドポイントの制御周期（125*2^(interval-1) マイクロ秒）
+}
+
+impl EndpointConfig{
+
 }
