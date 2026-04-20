@@ -1,5 +1,5 @@
 // ================================================================
-// @file usb/ring.hpp
+// @file usb/memory_alloc.rs
 //
 // USB ドライバ用の動的メモリ管理機能
 // 64バイト境界とうの制約を厳格に定める
@@ -71,5 +71,27 @@ impl MemoryPool{
         }else{
             return None
         }
+    }
+}
+
+pub struct ArrayMap<K, V, const N: usize> {
+    entries: [Option<(K, V)>; N],
+}
+
+impl<K: PartialEq, V, const N: usize> ArrayMap<K, V, N> {
+    pub fn put(&mut self, key: K, value: V) {
+        for slot in self.entries.iter_mut() {
+            if slot.is_none() {
+                *slot = Some((key, value));
+                return;
+            }
+        }
+    }
+
+    pub fn get(&self, key: &K) -> Option<&V> {
+        self.entries.iter()
+            .filter_map(|e| e.as_ref())
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v)
     }
 }
