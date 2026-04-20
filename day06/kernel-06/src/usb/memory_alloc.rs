@@ -74,11 +74,18 @@ impl MemoryPool{
     }
 }
 
+// device定義のための簡易的な固定長配列のmap
 pub struct ArrayMap<K, V, const N: usize> {
     entries: [Option<(K, V)>; N],
 }
 
 impl<K: PartialEq, V, const N: usize> ArrayMap<K, V, N> {
+    pub fn new() -> Self{
+        let entries = core::array::from_fn(|_| None);
+        Self{
+            entries
+        }
+    }
     pub fn put(&mut self, key: K, value: V) {
         for slot in self.entries.iter_mut() {
             if slot.is_none() {
