@@ -19,15 +19,15 @@ use crate::usb::endpoint::EndpointID;
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
 pub struct TRB {
-    parameter: u64,
+    pub parameter: u64,
     
-    status: u32,
+    pub status: u32,
 
     pub cycle_bit: B1,
-    evaluate_next_trb: B1,
+    pub evaluate_next_trb: B1,
     #[skip] __: u8,
-    trb_type : B6,
-    control: B16
+    pub trb_type : B6,
+    pub control: B16
 }
 
 
@@ -37,22 +37,22 @@ pub struct TRB {
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
 pub struct NormalTRB {
-    data_buffer_pointer: u64,
+    pub data_buffer_pointer: u64,
 
-    trb_transfer_length: B17,
-    td_size: B5,
-    interrupter_target: B10,
+    pub trb_transfer_length: B17,
+    pub td_size: B5,
+    pub interrupter_target: B10,
 
-    cycle_bit: B1,
-    evaluate_next_trb: B1,
-    interrupt_on_short_packet: B1,
-    no_snoop: B1,
-    chain_bit: B1,
-    interrupt_on_completion: B1,
-    immediate_data: B1,
+    pub cycle_bit: B1,
+    pub evaluate_next_trb: B1,
+    pub interrupt_on_short_packet: B1,
+    pub no_snoop: B1,
+    pub chain_bit: B1,
+    pub interrupt_on_completion: B1,
+    pub immediate_data: B1,
     #[skip] __: B2,
-    block_event_interrupt: B1,
-    trb_type : B6,
+    pub block_event_interrupt: B1,
+    pub trb_type : B6,
     #[skip] __: B16
 }
 
@@ -81,24 +81,24 @@ impl NormalTRB{
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
 pub struct SetupStageTRB {
-    request_type: u8,
-    request: u8,
-    value: u16,
+    pub request_type: u8,
+    pub request: u8,
+    pub value: u16,
 
-    index: u16,
-    length: u16,
+    pub index: u16,
+    pub length: u16,
 
-    trb_transfer_length: B17,
+    pub trb_transfer_length: B17,
     #[skip] __ : B5,
-    interrupter_target: B10,
+    pub interrupter_target: B10,
 
-    cycle_bit: B1,
+    pub cycle_bit: B1,
     #[skip] __: B4,
-    interrupt_on_completion: B1,
-    immediate_data: B1,
+    pub interrupt_on_completion: B1,
+    pub immediate_data: B1,
     #[skip] __: B3,
-    trb_type : B6,
-    transfer_type: B2,
+    pub trb_type : B6,
+    pub transfer_type: B2,
     #[skip] __: B14,
 }
 
@@ -106,7 +106,7 @@ impl SetupStageTRB{
     pub const TYPE: u8 = 2;
     const NO_DATA_STAGE:u8 = 0;
     const OUT_DATA_STAGE:u8 = 2;
-    const IN_DATA_STAGE:u8 = 3;
+    pub const IN_DATA_STAGE:u8 = 3;
     
     pub fn initialize() -> Self {
         let mut trb = SetupStageTRB::new();
@@ -124,22 +124,22 @@ impl SetupStageTRB{
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
 pub struct DataStageTRB {
-    data_buffer_pointer: u64,
+    pub data_buffer_pointer: u64,
 
-    trb_transfer_length: B17,
-    td_size : B5,
-    interrupter_target: B10,
+    pub trb_transfer_length: B17,
+    pub td_size : B5,
+    pub interrupter_target: B10,
 
-    cycle_bit: B1,
-    evaluate_next_trb: B1,
-    interrupt_on_short_packet: B1,
-    no_snoop: B1,
-    chain_bit: B1,
+    pub cycle_bit: B1,
+    pub evaluate_next_trb: B1,
+    pub interrupt_on_short_packet: B1,
+    pub no_snoop: B1,
+    pub chain_bit: B1,
     pub interrupt_on_completion: B1,
-    immediate_data: B1,
+    pub immediate_data: B1,
     #[skip] __: B3,
-    trb_type : B6,
-    direction: B1,
+    pub trb_type : B6,
+    pub direction: B1,
     #[skip] __: B15,
 }
 
@@ -171,16 +171,16 @@ pub struct StatusStageTRB {
     #[skip] __: u64,
 
     #[skip] __: B22,
-    interrupter_target: B10,
+    pub interrupter_target: B10,
 
-    cycle_bit: B1,
-    evaluate_next_trb: B1,
+    pub cycle_bit: B1,
+    pub evaluate_next_trb: B1,
     #[skip] __: B2,
-    chain_bit: B1,
-    interrupt_on_completion: B1,
+    pub chain_bit: B1,
+    pub interrupt_on_completion: B1,
     #[skip] __: B4,
-    trb_type : B6,
-    direction: B1,
+    pub trb_type : B6,
+    pub direction: B1,
     #[skip] __: B15,
 }
 
@@ -202,18 +202,18 @@ impl StatusStageTRB{
 #[derive(Debug, Copy, Clone)]
 pub struct LinkTRB {
     #[skip] __: B4,
-    ring_segment_pointer: B60,
+    pub ring_segment_pointer: B60,
 
     #[skip] __: B22,
-    interrupter_target: B10,
+    pub interrupter_target: B10,
 
-    cycle_bit: B1,
+    pub cycle_bit: B1,
     pub toggle_cycle: B1,
     #[skip] __: B2,
-    chain_bit: B1,
-    interrupt_on_completion: B1,
+    pub chain_bit: B1,
+    pub interrupt_on_completion: B1,
     #[skip] __: B4,
-    trb_type : B6,
+    pub trb_type : B6,
     #[skip] __: B16,
 }
 
@@ -246,15 +246,15 @@ pub struct NoOpTRB {
     #[skip] __: u64,
 
     #[skip] __: B22,
-    interrupter_target: B10,
+    pub interrupter_target: B10,
 
-    cycle_bit: B1,
-    evaluate_next_trb: B1,
+    pub cycle_bit: B1,
+    pub evaluate_next_trb: B1,
     #[skip] __: B2,
-    chain_bit: B1,
-    interrupt_on_completion: B1,
+    pub chain_bit: B1,
+    pub interrupt_on_completion: B1,
     #[skip] __: B4,
-    trb_type : B6,
+    pub trb_type : B6,
     #[skip] __: B16,
 }
 
@@ -281,10 +281,10 @@ pub struct EnableSlotCommandTRB {
 
     #[skip] __: u32,
 
-    cycle_bit: B1,
+    pub cycle_bit: B1,
     #[skip] __: B9,
-    trb_type : B6,
-    slot_type: B5,
+    pub trb_type : B6,
+    pub slot_type: B5,
     #[skip] __: B11,
 }
 
@@ -306,16 +306,16 @@ impl EnableSlotCommandTRB{
 #[derive(Debug, Copy, Clone)]
 pub struct AddressDeviceCommandTRB {
     #[skip] __: B4,
-    input_context_pointer: B60,
+    pub input_context_pointer: B60,
 
     #[skip] __: u32,
 
-    cycle_bit: B1,
+    pub cycle_bit: B1,
     #[skip] __: B8,
-    block_set_address_request: B1,
-    trb_type: B6,
+    pub block_set_address_request: B1,
+    pub trb_type: B6,
     #[skip] __: B8,
-    slot_id: u8,
+    pub slot_id: u8,
 }
 
 impl AddressDeviceCommandTRB {
@@ -346,16 +346,16 @@ impl AddressDeviceCommandTRB {
 #[derive(Debug, Copy, Clone)]
 pub struct ConfigureEndpointCommandTRB {
     #[skip] __: B4,
-    input_context_pointer: B60,
+    pub input_context_pointer: B60,
 
     #[skip] __: u32,
 
-    cycle_bit: B1,
+    pub cycle_bit: B1,
     #[skip] __: B8,
-    deconfigure: B1,
-    trb_type: B6,
+    pub deconfigure: B1,
+    pub trb_type: B6,
     #[skip] __: B8,
-    slot_id: u8,
+    pub slot_id: u8,
 }
 
 impl ConfigureEndpointCommandTRB {
@@ -391,13 +391,13 @@ pub struct StopEndpointCommandTRB {
 
     #[skip] __: u32,
 
-    cycle_bit: B1,
+    pub cycle_bit: B1,
     #[skip] __: B9,
-    trb_type: B6,
-    endpoint_id: B5,
+    pub trb_type: B6,
+    pub endpoint_id: B5,
     #[skip] __: B2,
-    suspend: B1,
-    slot_id: u8,
+    pub suspend: B1,
+    pub slot_id: u8,
 }
 
 impl StopEndpointCommandTRB {
@@ -429,9 +429,9 @@ pub struct NoOpCommandTRB {
 
     #[skip] __: u32,
 
-    cycle_bit: B1,
+    pub cycle_bit: B1,
     #[skip] __: B9,
-    trb_type: B6,
+    pub trb_type: B6,
     #[skip] __: B16,
 }
 
@@ -452,17 +452,17 @@ impl NoOpCommandTRB {
 #[bitfield(bits = 128)]
 #[derive(Debug, Copy, Clone)]
 pub struct TransferEventTRB {
-    trb_pointer: u64,
+    pub trb_pointer: u64,
 
-    trb_transfer_length: B24,
-    completion_code: u8,
+    pub trb_transfer_length: B24,
+    pub completion_code: u8,
 
-    cycle_bit: B1,
+    pub cycle_bit: B1,
     #[skip] __: B1,
-    event_data: B1,
+    pub event_data: B1,
     #[skip] __: B7,
-    trb_type: B6,
-    endpoint_id: B5,
+    pub trb_type: B6,
+    pub endpoint_id: B5,
     #[skip] __: B3,
     pub slot_id: u8,
 }
@@ -497,16 +497,16 @@ impl TransferEventTRB {
 #[derive(Debug, Copy, Clone)]
 pub struct CommandCompletionEventTRB {
     #[skip] __: B4,
-    command_trb_pointer: B60,
+    pub command_trb_pointer: B60,
 
-    command_completion_parameter: B24,
-    completion_code: u8,
+    pub command_completion_parameter: B24,
+    pub completion_code: u8,
 
-    cycle_bit: B1,
+    pub cycle_bit: B1,
     #[skip] __: B9,
-    trb_type: B6,
-    vf_id: u8,
-    slot_id: u8,
+    pub trb_type: B6,
+    pub vf_id: u8,
+    pub slot_id: u8,
 }
 
 impl CommandCompletionEventTRB {
@@ -535,16 +535,16 @@ impl CommandCompletionEventTRB {
 #[derive(Debug, Copy, Clone)]
 pub struct PortStatusChangeEventTRB {
     #[skip] __: B24,
-    port_id: u8,
+    pub port_id: u8,
 
     #[skip] __: u32,
 
     #[skip] __: B24,
-    completion_code: u8,
+    pub completion_code: u8,
 
-    cycle_bit: B1,
+    pub cycle_bit: B1,
     #[skip] __: B9,
-    trb_type: B6,
+    pub trb_type: B6,
     #[skip] __: B16,
 }
 
