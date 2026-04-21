@@ -49,7 +49,7 @@ impl XhciDevice{
 
     fn make_SetupStageTRB(setup_data: SetupData, transfer_type: u8) -> SetupStageTRB {
         let mut setup: SetupStageTRB = SetupStageTRB::initialize();
-        setup.set_request_type(setup_data.request_type);
+        setup.set_request_type(setup_data.request_type_as_u8());
         setup.set_request(setup_data.request);
         setup.set_value(setup_data.value);
         setup.set_index(setup_data.index);
