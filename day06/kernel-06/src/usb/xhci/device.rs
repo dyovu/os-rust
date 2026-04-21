@@ -29,20 +29,14 @@ pub struct XhciDevice{
 
 impl XhciDevice{
     pub fn new(slot_id: u8, dbreg_addr: usize) -> Self{
-        let state = State::Blank;
-        let  transfer_rings = core::array::from_fn(|_| None);
-        let setup_stage_map = ArrayMap::new();
-        let ctx = DeviceContext::new();
-        let input_ctx = InputContext::new();
-        
         Self{
             slot_id,
-            state,
-            transfer_rings,
-            ctx,
-            input_ctx,
+            state: State::Blank,
+            transfer_rings: core::array::from_fn(|_| None),
+            ctx: DeviceContext::new(),
+            input_ctx: InputContext::new(),
             dbreg_addr,
-            setup_stage_map,
+            setup_stage_map: ArrayMap::new(),
         }
     }
 
