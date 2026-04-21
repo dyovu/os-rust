@@ -152,12 +152,18 @@ impl DataStageTRB{
         trb
     }
 
-    pub fn pointer(&self) -> *const TRB {
-        self.data_buffer_pointer() as *const TRB
+    pub fn pointer(&self) -> *const [u8] {
+        let ptr = self.data_buffer_pointer() as *const u8;
+        let len = self.trb_transfer_length() as usize;
+        core::ptr::slice_from_raw_parts(ptr, len)
     }
 
-    pub fn set_pointer(&mut self, p: *const TRB) {
-        self.set_data_buffer_pointer(p as u64);
+    pub fn set_pointer(&mut self, p: *const [u8]) {
+        let ptr = p as *const u8; // アドレス部分の抽出
+        let len = p.len();        // 長さ部分の抽出
+
+        self.set_data_buffer_pointer(ptr as u64);
+        self.set_trb_transfer_length(len as u32);
     }
 }
 
