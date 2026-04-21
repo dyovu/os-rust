@@ -47,8 +47,15 @@ impl XhciDevice{
         
     }
 
-    fn make_SetupStageTRB() -> SetupStageTRB {
-        SetupStageTRB::initialize()
+    fn make_SetupStageTRB(setup_data: SetupData, transfer_type: u8) -> SetupStageTRB {
+        let mut setup: SetupStageTRB = SetupStageTRB::initialize();
+        setup.set_request_type(setup_data.request_type);
+        setup.set_request(setup_data.request);
+        setup.set_value(setup_data.value);
+        setup.set_index(setup_data.index);
+        setup.set_length(setup_data.length);
+        setup.set_transfer_type(transfer_type);
+        setup
     }
 
     fn make_DataStageTRB() -> DataStageTRB {
@@ -78,7 +85,7 @@ impl UsbDevice for XhciDevice{
 
         // 1. Setup Stage
         // ホストからデバイスへ、これからどのような処理を行いたいかという8バイトの要求データ（SetupData）を送信する
-        let setup_stage_trb: SetupStageTRB = XhciDevice::make_SetupStageTRB();
+        let setup_stage_trb: SetupStageTRB = XhciDevice::make_SetupStageTRB(setup_data, SetupStageTRB::IN_DATA_STAGE);
         let tup_stage_trb_bit:[u8; 16] = setup_stage_trb.into_bytes();
         let setup_trb = ring.push(&tup_stage_trb_bit);
         let setup_trb_addr = unsafe { trb_dynamic_cast::<SetupStageTRB>(setup_trb) }.ok_or(())?;
