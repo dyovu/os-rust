@@ -135,7 +135,7 @@ pub struct DataStageTRB {
     interrupt_on_short_packet: B1,
     no_snoop: B1,
     chain_bit: B1,
-    interrupt_on_completion: B1,
+    pub interrupt_on_completion: B1,
     immediate_data: B1,
     #[skip] __: B3,
     trb_type : B6,
