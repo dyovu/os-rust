@@ -58,8 +58,12 @@ impl XhciDevice{
         setup
     }
 
-    fn make_DataStageTRB() -> DataStageTRB {
-        DataStageTRB::initialize()
+    fn make_DataStageTRB(buf: *const [u8], dir_in: bool) -> DataStageTRB {
+        let mut data: DataStageTRB = DataStageTRB::initialize();
+        data.set_pointer(buf);
+        data.set_td_size(0);
+        data.set_direction(dir_in as u8);
+        data
     }
 }
 
@@ -92,7 +96,7 @@ impl UsbDevice for XhciDevice{
 
         // 2. Data Stage
         // Setup Stageの要求に基づき、デバイスから実際のデータを受信する
-        let mut data_stage_trb: DataStageTRB = XhciDevice::make_DataStageTRB();
+        let mut data_stage_trb: DataStageTRB = XhciDevice::make_DataStageTRB(buf as *const [u8],  true);
         data_stage_trb.set_interrupt_on_completion(true as u8); // 完了時に割り込みを発生させる設定
         let data_stage_trb_bit:[u8; 16] = data_stage_trb.into_bytes();
         let data_trb = ring.push(&data_stage_trb_bit) as usize;
