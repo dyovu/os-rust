@@ -48,4 +48,11 @@ impl <C: UsbDevice> Device<C>{
             event_waiters: ArrayMap::new(),
         }
     }
+
+    pub fn control_in(&mut self, ep_id: EndpointID, setup_data: SetupData, buf: &mut [u8], issuer: Option<usize>){
+        if let Some(class_driver_addr) = issuer{
+            self.event_waiters.put(setup_data, class_driver_addr);
+        }
+        self.controller.control_in(ep_id, setup_data, buf);
+    }
 }
