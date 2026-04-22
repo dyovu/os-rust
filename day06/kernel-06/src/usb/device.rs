@@ -15,7 +15,7 @@ use crate::usb::endpoint::{EndpointConfig, EndpointID};
 
 // 全ての規格のUSBが実装するべきメソッド
 pub trait UsbDevice {
-    fn control_in(&mut self, ep_id: EndpointID, setup_data: SetupData, buf: &mut [u8]) -> Result<(), ()>;
+    fn control_in(&mut self, ep_id: EndpointID, setup_data: SetupData, buf: Option<&mut [u8]>) -> Result<(), ()>;
     fn control_out(&mut self, ep_id: EndpointID, setup_data: SetupData, buf: &[u8]) -> Result<(), ()>;
     fn interrupt_in(&mut self, ep_id: EndpointID, buf: &mut [u8]) -> Result<(), ()>;
     fn interrupt_out(&mut self, ep_id: EndpointID, buf: &mut [u8]) -> Result<(),  ()>;
