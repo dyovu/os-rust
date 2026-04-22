@@ -10,7 +10,7 @@ use crate::usb::xhci::ring::Ring;
 use crate::usb::memory_alloc::ArrayMap;
 use crate::usb::endpoint::EndpointID;
 use crate::usb::setupdata::SetupData;
-use crate::usb::xhci::trb::{SetupStageTRB, DataStageTRB, StatusStageTRB, trb_dynamic_cast};
+use crate::usb::xhci::trb::{NormalTRB, SetupStageTRB, DataStageTRB, StatusStageTRB, trb_dynamic_cast};
 use crate::usb::xhci::registers::{DoorbellRegister};
 
 #[derive(Debug, Clone, Copy)]
@@ -189,6 +189,24 @@ impl UsbDevice for XhciDevice{
     }
 
     fn interrupt_in(&mut self, ep_id: EndpointID, buf: &mut [u8]) -> Result<(), ()>{
+        let dci = DeviceContextIndex::new(ep_id.address());
+
+        let ring = match &mut self.transfer_rings[dci.value() as usize]{
+            Some(ring) => {
+                ring
+            }
+            None => { return Err(()) }
+        };
+
+        let mut norml_trb = NormalTRB::initialize();
+        norml_trb.set_pointer(buf);
+        norml_trb.set_interrupt_on_short_packet(true as u8);
+        norml_trb.set_interrupt_on_completion(true as u8);
+        let norml_trb_bit: [u8; 16] = norml_trb.into_bytes();
+        let _ = ring.push(&norml_trb_bit);
+
+        let door_reg = unsafe{ &mut *(self.dbreg_addr as *mut DoorbellRegister) };
+        door_reg.ring(dci.value(), 0);
 
         Ok(())
     }

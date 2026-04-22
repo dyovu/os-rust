@@ -62,4 +62,12 @@ impl <C: UsbDevice> Device<C>{
         }
         self.controller.control_out(ep_id, setup_data, buf);
     }
+
+    pub fn interrupt_in(&mut self, ep_id: EndpointID, buf: &mut [u8]){
+        self.controller.interrupt_in(ep_id, buf);
+    }
+
+    pub fn interrupt_out(&mut self, ep_id: EndpointID, buf: &mut [u8]){
+        self.controller.interrupt_out(ep_id, buf);
+    }
 }
