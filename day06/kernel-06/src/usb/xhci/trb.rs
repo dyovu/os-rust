@@ -69,8 +69,11 @@ impl NormalTRB{
         self.data_buffer_pointer() as *const TRB
     }
 
-    pub fn set_pointer(&mut self, p: *const TRB) {
-        self.set_data_buffer_pointer(p as u64);
+    pub fn set_pointer(&mut self, p: *const [u8]) {
+        let ptr = p as *const u8;
+        let len = p.len();
+        self.set_data_buffer_pointer(ptr as u64);
+        self.set_trb_transfer_length(len as u32);
     }
 }
 
