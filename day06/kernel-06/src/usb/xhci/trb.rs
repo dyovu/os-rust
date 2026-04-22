@@ -104,8 +104,8 @@ pub struct SetupStageTRB {
 
 impl SetupStageTRB{
     pub const TYPE: u8 = 2;
-    const NO_DATA_STAGE:u8 = 0;
-    const OUT_DATA_STAGE:u8 = 2;
+    pub const NO_DATA_STAGE:u8 = 0;
+    pub const OUT_DATA_STAGE:u8 = 2;
     pub const IN_DATA_STAGE:u8 = 3;
     
     pub fn initialize() -> Self {
