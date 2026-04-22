@@ -49,10 +49,17 @@ impl <C: UsbDevice> Device<C>{
         }
     }
 
-    pub fn control_in(&mut self, ep_id: EndpointID, setup_data: SetupData, buf: &mut [u8], issuer: Option<usize>){
+    pub fn control_in(&mut self, ep_id: EndpointID, setup_data: SetupData, buf: Option<&mut [u8]>, issuer: Option<usize>){
         if let Some(class_driver_addr) = issuer{
             self.event_waiters.put(setup_data, class_driver_addr);
         }
         self.controller.control_in(ep_id, setup_data, buf);
+    }
+
+    pub fn control_out(&mut self, ep_id: EndpointID, setup_data: SetupData, buf: Option<&mut [u8]>, issuer: Option<usize>){
+        if let Some(class_driver_addr) = issuer{
+            self.event_waiters.put(setup_data, class_driver_addr);
+        }
+        self.controller.control_out(ep_id, setup_data, buf);
     }
 }
