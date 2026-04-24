@@ -269,13 +269,18 @@ impl Controller {
         let slot_id = trb.slot_id();
         match self.device_manager.find_by_slot(slot_id as usize){
             Some(dev) => {
-                dev.on_transfer_event_received();
+                dev.controller.on_transfer_event_received(trb);
 
+                let port_id = dev.controller.device_context().slot_context().root_hub_port_num() as usize;
+
+                if dev.is_initialized() && port_config_phase[port_id] == ConfigPhase::InitializingDevice{
+                    self.configure_endpoints()
+                }
             }
             None => {
                 loop{}
             }
-        }
+        }        
     }
 
     fn on_event_ptc(&self, trb: &PortStatusChangeEventTRB){
