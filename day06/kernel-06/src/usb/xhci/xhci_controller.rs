@@ -4,11 +4,12 @@
 // xHCI ホストコントローラ制御用クラス．
 // ================================================================
 
-use crate::usb::xhci::registers::{CapabilityRegisters, OperationalRegisters, InterrupterRegisterSet, ExtendedRegisterList, UsblegsupRegister, DoorbellRegister, Dcbaap, ArrayWrapper};
+use crate::usb::xhci::registers::{CapabilityRegisters, OperationalRegisters, InterrupterRegisterSet, PortRegisterSet, ExtendedRegisterList, UsblegsupRegister, DoorbellRegister, Dcbaap, ArrayWrapper};
 use crate::usb::xhci::device_manager::{DeviceManager};
 use crate::usb::xhci::ring::{Ring, EventRing};
 use crate::usb::xhci::context::DeviceContext;
 use crate::usb::xhci::trb::*;
+use crate::usb::xhci::port::Port;
 use crate::usb::memory_alloc::MEMORY_POOL;
 
  #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -272,8 +273,7 @@ impl Controller {
                 dev.controller.on_transfer_event_received(trb);
 
                 let port_id = dev.controller.device_context().slot_context().root_hub_port_num() as usize;
-
-                if dev.is_initialized() && port_config_phase[port_id] == ConfigPhase::InitializingDevice{
+                if dev.is_initialized() && self.port_config_phase[port_id] == ConfigPhase::InitializingDevice{
                     self.configure_endpoints()
                 }
             }
@@ -284,7 +284,20 @@ impl Controller {
     }
 
     fn on_event_ptc(&self, trb: &PortStatusChangeEventTRB){
+        let port_id = trb.port_id();
+        let port = self.port_at(port_id);
 
+        match self.port_config_phase[port_id as usize] {
+            ConfigPhase::NotConnected => {
+                self.reset_port()
+            }
+            ConfigPhase::ResettingPort => {
+                self.enable_slot()
+            }
+            _ => {
+                loop{}
+            }
+        }
     }
 
     fn on_event_cc(&self, trb: &CommandCompletionEventTRB){
@@ -296,5 +309,17 @@ impl Controller {
         let trb = self.cr().push(trb);
         unsafe{ &(*self.doorbell_register(0)).ring(0, 0) };
         trb
+    }
+
+    fn port_at(&self, port_id:u8) -> Port{
+        let prs = self.port_register_sets();
+        let prs_ref = unsafe{ prs.get(port_id as usize) };
+        Port::new(port_id, prs_ref)
+    }
+
+    fn port_register_sets(&self) -> ArrayWrapper<PortRegisterSet>{
+        let addr = self.op_regs() as usize + 0x400;
+        let prs = unsafe{ ArrayWrapper::<PortRegisterSet>::new(addr, self.max_ports as usize) };
+        prs
     }
 }
