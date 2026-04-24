@@ -313,7 +313,7 @@ impl Controller {
 
     fn port_at(&self, port_id:u8) -> Port{
         let prs = self.port_register_sets();
-        let prs_ref = unsafe{ prs.get(port_id as usize) };
+        let prs_ref = unsafe{ prs.get_mut(port_id as usize) as usize};
         Port::new(port_id, prs_ref)
     }
 
