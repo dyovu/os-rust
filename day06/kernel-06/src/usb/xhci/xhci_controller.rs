@@ -210,6 +210,14 @@ impl Controller {
         self.op_base as *mut OperationalRegisters
     }
 
+    fn cr(&mut self) -> &mut Ring{
+        &mut self.cr
+    }
+    
+    fn er(&mut self) -> &mut EventRing{
+        &mut self.er
+    }
+
     fn doorbell_register(&self, index: u8) -> *mut DoorbellRegister{
         let dboff= unsafe{ (*self.cap_regs()).DBOFF.read().doorbell_array_offset() as usize };
         let primary_doorbell_reg = unsafe {
@@ -276,5 +284,12 @@ impl Controller {
 
     fn on_event_cc(&self, trb: &CommandCompletionEventTRB){
 
+    }
+
+    // command ringにtrbを積みドアベルを鳴らす
+    fn push_trb(&mut self, trb: &[u8; 16]) -> *mut TRB {
+        let trb = self.cr().push(trb);
+        unsafe{ &(*self.doorbell_register(0)).ring(0, 0) };
+        trb
     }
 }
