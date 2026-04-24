@@ -118,6 +118,10 @@ impl DeviceContext{
             ep_contexts: [EndpointContext::new(); 31],
         }
     }
+
+    pub fn slot_context(&self) -> &SlotContext{
+        &self.slot_context
+    }
 }
 
 // ================================================================

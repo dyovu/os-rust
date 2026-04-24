@@ -70,4 +70,8 @@ impl <C: UsbDevice> Device<C>{
     pub fn interrupt_out(&mut self, ep_id: EndpointID, buf: &mut [u8]){
         self.controller.interrupt_out(ep_id, buf);
     }
+
+    pub fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
 }

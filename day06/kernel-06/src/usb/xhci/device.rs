@@ -10,7 +10,7 @@ use crate::usb::xhci::ring::Ring;
 use crate::usb::memory_alloc::ArrayMap;
 use crate::usb::endpoint::EndpointID;
 use crate::usb::setupdata::SetupData;
-use crate::usb::xhci::trb::{NormalTRB, SetupStageTRB, DataStageTRB, StatusStageTRB, trb_dynamic_cast};
+use crate::usb::xhci::trb::{NormalTRB, SetupStageTRB, DataStageTRB, StatusStageTRB, trb_dynamic_cast, TransferEventTRB};
 use crate::usb::xhci::registers::{DoorbellRegister};
 
 #[derive(Debug, Clone, Copy)]
@@ -43,8 +43,13 @@ impl XhciDevice{
         }
     }
 
-    pub fn on_transfer_event_received(&self) {
-        
+    pub fn on_transfer_event_received(&self, trb: &TransferEventTRB) -> Result<(), ()> {
+
+        Ok(())
+    }
+
+    pub fn device_context(&self) -> &DeviceContext {
+        &self.ctx
     }
 
     fn make_SetupStageTRB(setup_data: SetupData, transfer_type: u8) -> SetupStageTRB {
