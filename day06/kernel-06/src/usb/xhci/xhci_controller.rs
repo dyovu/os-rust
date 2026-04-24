@@ -322,4 +322,12 @@ impl Controller {
         let prs = unsafe{ ArrayWrapper::<PortRegisterSet>::new(addr, self.max_ports as usize) };
         prs
     }
+
+    fn reset_port(&self) {
+
+    }
+
+    fn enable_slot(&self) {
+        
+    }
 }
