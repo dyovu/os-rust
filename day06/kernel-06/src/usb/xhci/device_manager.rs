@@ -8,13 +8,14 @@
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
-use crate::usb::xhci::device::Device;
+use crate::usb::xhci::device::XhciDevice;
+use crate::usb::device::Device;
 use crate::usb::xhci::context::DeviceContext;
 use crate::usb::memory_alloc::MEMORY_POOL;
 
 pub struct DeviceManager{
     max_slots: usize,
-    devices: Vec<Option<Box<Device>>>,
+    devices: Vec<Option<Box<Device<XhciDevice>>>>,
     device_context_addr: usize, // DCBAAの先頭のアドレス
 }
 
@@ -44,7 +45,7 @@ impl DeviceManager{
         self.device_context_addr
     }
 
-    pub fn find_by_slot(&self, slot_id: usize) -> Option<&Device>{
+    pub fn find_by_slot(&self, slot_id: usize) -> Option<&Device<XhciDevice>>{
         if slot_id > self.max_slots {
             return None
         }
