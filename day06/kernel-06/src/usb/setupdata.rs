@@ -1,3 +1,5 @@
+use core::default;
+
 use modular_bitfield::prelude::*;
 
 // --- bmRequestType recipient ---
@@ -63,7 +65,7 @@ pub const DESC_SUPERSPEED_PLUS_ISOCHRONOUS_ENDPOINT_COMPANION: u8 = 49;
 
 // C++のunionのbits部分をbitfieldで表現
 #[bitfield(bits = 8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct RequestType {
     pub recipient: B5,
     pub ty: B2, // Rustではtypeが予約語であるためtyを使用
@@ -71,7 +73,7 @@ pub struct RequestType {
 }
 
 // 構造体の中に構造体（RequestType）を含める形
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[repr(C, packed)]
 pub struct SetupData {
     pub request_type: RequestType,
