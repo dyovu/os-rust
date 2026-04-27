@@ -187,7 +187,7 @@ impl Controller {
     }
 
     pub fn process_event(&mut self) {
-        if self.er.has_pending_event(){
+        if !self.er.has_pending_event(){
             return 
         }
 
