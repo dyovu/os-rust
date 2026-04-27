@@ -21,6 +21,22 @@ pub trait UsbDevice {
     fn interrupt_out(&mut self, ep_id: EndpointID, buf: &mut [u8]) -> Result<(),  ()>;
 }
 
+// コントローラ転送のTransferEvent処理が終わった際にcontroller側に返すenum
+// device固有の処理は各device構造体にやらせて、controllerの処理はcontroller側で行う
+pub enum TransferEventResult {
+    InterruptCompleted {
+        ep_id: u8,
+        buffer: usize,
+        transfer_length: u32,
+    },
+    ControlCompleted {
+        ep_id: u8,
+        setup_data: SetupData,
+        data_stage_buffer: usize,
+        transfer_length: usize,
+    },
+}
+
 // 共通フィールドの構造体
 // 上記のUsbDeviceトレイトを実装した型をフィールドに持つ
 // これによりxHCIなどに固有な操作を行う
