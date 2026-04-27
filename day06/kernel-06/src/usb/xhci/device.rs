@@ -12,6 +12,7 @@ use crate::usb::endpoint::EndpointID;
 use crate::usb::setupdata::{SetupData, RequestType};
 use crate::usb::xhci::trb::{TRB, NormalTRB, SetupStageTRB, DataStageTRB, StatusStageTRB, trb_dynamic_cast, TransferEventTRB};
 use crate::usb::xhci::registers::{DoorbellRegister};
+use crate::usb::device::TransferEventResult;
 
 #[derive(Debug, Clone, Copy)]
 enum State {
@@ -43,7 +44,7 @@ impl XhciDevice{
         }
     }
 
-    pub fn on_transfer_event_received(&self, trb: &TransferEventTRB) -> Result<(), ()> {
+    pub fn on_transfer_event_received(&mut self, trb: &TransferEventTRB) -> Result<TransferEventResult, ()> {
         let residual_length = trb.trb_transfer_length();
 
         if trb.completion_code() != 1 && trb. completion_code() != 13{
@@ -52,8 +53,12 @@ impl XhciDevice{
 
         let issuer_trb = trb.trb_pointer() as *mut TRB;
         if let Some(normal_trb) = unsafe{ trb_dynamic_cast::<NormalTRB>(issuer_trb) }{
-            let transfer_length = normal_trb.trb_transfer_length();
-            on_intrttupt_complete()
+            let transfer_length = normal_trb.trb_transfer_length() - residual_length;
+            return Ok(TransferEventResult::InterruptCompleted{
+                ep_id: trb.endpoint_id(),
+                buffer: normal_trb.pointer() as usize,
+                transfer_length: transfer_length,
+            })
         }
 
         let opt_setup_stage_trb = self.setup_stage_map.get(&(issuer_trb as usize));
@@ -87,8 +92,12 @@ impl XhciDevice{
             return Err(())
         }
 
-        on_controll_completed();
-        Ok(())
+        Ok(TransferEventResult::ControlCompleted{
+            ep_id: trb.endpoint_id(),
+            setup_data,
+            data_stage_buffer,
+            transfer_length
+        })
     }
 
     pub fn device_context(&self) -> &DeviceContext {
