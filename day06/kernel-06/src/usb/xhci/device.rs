@@ -9,8 +9,8 @@ use crate::usb::xhci::context::{DeviceContext, DeviceContextIndex, InputContext}
 use crate::usb::xhci::ring::Ring;
 use crate::usb::memory_alloc::ArrayMap;
 use crate::usb::endpoint::EndpointID;
-use crate::usb::setupdata::SetupData;
-use crate::usb::xhci::trb::{NormalTRB, SetupStageTRB, DataStageTRB, StatusStageTRB, trb_dynamic_cast, TransferEventTRB};
+use crate::usb::setupdata::{SetupData, RequestType};
+use crate::usb::xhci::trb::{TRB, NormalTRB, SetupStageTRB, DataStageTRB, StatusStageTRB, trb_dynamic_cast, TransferEventTRB};
 use crate::usb::xhci::registers::{DoorbellRegister};
 
 #[derive(Debug, Clone, Copy)]
@@ -44,7 +44,50 @@ impl XhciDevice{
     }
 
     pub fn on_transfer_event_received(&self, trb: &TransferEventTRB) -> Result<(), ()> {
+        let residual_length = trb.trb_transfer_length();
 
+        if trb.completion_code() != 1 && trb. completion_code() != 13{
+            return Err(())
+        }
+
+        let issuer_trb = trb.trb_pointer() as *mut TRB;
+        if let Some(normal_trb) = unsafe{ trb_dynamic_cast::<NormalTRB>(issuer_trb) }{
+            let transfer_length = normal_trb.trb_transfer_length();
+            on_intrttupt_complete()
+        }
+
+        let opt_setup_stage_trb = self.setup_stage_map.get(&(issuer_trb as usize));
+        let setup_data = match opt_setup_stage_trb {
+            Some(setup_stage_trb) => {
+                let mut setup_data = SetupData::default();
+                setup_data.request_type = unsafe{ *(setup_stage_trb.request_type() as *const RequestType) };
+                setup_data.request = setup_stage_trb.request();
+                setup_data.value = setup_stage_trb.value();
+                setup_data.index = setup_stage_trb.index();
+                setup_data.length = setup_stage_trb.length();
+                setup_data
+            }
+            None => {
+                // Logの出力をするようにする
+                return Err(())
+            }
+        };
+
+        self.setup_stage_map.delete(&(issuer_trb as usize));
+
+        let mut data_stage_buffer: usize = 0;
+        let mut transfer_length: usize = 0;
+        if let Some(data_stage_trb) = unsafe{ trb_dynamic_cast::<DataStageTRB>(issuer_trb) }{
+            let fat_pointer = data_stage_trb.pointer();
+            data_stage_buffer = fat_pointer as *const () as usize;
+            transfer_length = fat_pointer.len();
+        }else if let Some(status_stage_trb) = unsafe{ trb_dynamic_cast::<StatusStageTRB>(issuer_trb) }{
+            // なんでこれなんもしない？
+        }else{
+            return Err(())
+        }
+
+        on_controll_completed();
         Ok(())
     }
 
@@ -70,6 +113,8 @@ impl XhciDevice{
         data.set_direction(dir_in as u8);
         data
     }
+
+
 }
 
 impl UsbDevice for XhciDevice{
