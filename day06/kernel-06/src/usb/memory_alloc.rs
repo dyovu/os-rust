@@ -101,4 +101,15 @@ impl<K: PartialEq, V, const N: usize> ArrayMap<K, V, N> {
             .find(|(k, _)| k == key)
             .map(|(_, v)| v)
     }
+
+    pub fn delete(&mut self, key: &K) {
+        for slot in self.entries.iter_mut() {
+            if let Some((k, _)) = slot {
+                if k == key {
+                    *slot = None;
+                    return;
+                }
+            }
+        }
+    }
 }
