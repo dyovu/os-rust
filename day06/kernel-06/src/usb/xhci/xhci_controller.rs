@@ -266,9 +266,9 @@ impl Controller {
         unsafe { (*self.op_regs()).CRCR.write(crcr) };
     }
 
-    fn on_event_transfer(&self, trb: &TransferEventTRB){
+    fn on_event_transfer(&mut self, trb: &TransferEventTRB){
         let slot_id = trb.slot_id();
-        match self.device_manager.find_by_slot(slot_id as usize){
+        match self.device_manager.find_by_slot_mut(slot_id as usize){
             Some(dev) => {
                 dev.controller.on_transfer_event_received(trb);
 
