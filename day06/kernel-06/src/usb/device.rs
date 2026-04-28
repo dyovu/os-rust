@@ -9,7 +9,7 @@
 use alloc::boxed::Box;
 
 use crate::usb::classdriver::base::ClassDriver;
-use crate::usb::setupdata::SetupData;
+use crate::usb::setupdata::{SetupData, request_type, request, descriptor_type};
 use crate::usb::memory_alloc::ArrayMap;
 use crate::usb::endpoint::{EndpointConfig, EndpointID};
 
@@ -48,7 +48,7 @@ pub struct Device<C: UsbDevice> {
     pub buf: [u8; 256],
     pub ep_configs: [EndpointConfig; 16],
     pub num_ep_configs: usize,
-    pub event_waiters: ArrayMap<SetupData, usize, 4>, // usizeはep_idのNumber()
+    pub event_waiters: ArrayMap<SetupData, usize, 4>, // usizeはクラスドライバのアドレス
 }
 
 impl <C: UsbDevice> Device<C>{
@@ -87,7 +87,57 @@ impl <C: UsbDevice> Device<C>{
         self.controller.interrupt_out(ep_id, buf);
     }
 
-    pub fn is_initialized(&self) -> bool {
-        self.is_initialized
+    pub fn on_control_completed(&mut self, ep_id: EndpointID, setup_data: SetupData, data_stage_buffer: usize, transfer_length: usize){
+        // log
+        // err
+        if self.is_initialized {
+            if let Some(w) = self.event_waiters.get(&setup_data){
+                todo!("クラスドライバを実装したら呼び出す")
+            }
+        }
+
+        // 初期化が終わってない場合、初期化していく
+        match self.initialize_phase{
+            1 => {
+                if setup_data.request == request::GET_DESCRIPTOR &&  {
+                    self.initialize_phase1();
+                }
+            }
+            2 => {
+                if setup_data.request == request::GET_DESCRIPTOR &&  {
+                    self.initialize_phase2();
+                }
+            }
+            3 => {
+                if setup_data.request == request::SET_CONFIGURATION &&  {
+                    self.initialize_phase3();
+                }
+
+            }
+            _ => {
+                todo!("エラーハンドリングする")
+            }
+        }
+    }
+
+    pub fn on_interrupt_completed(&mut self, ep_id: EndpointID, data_stage_buffer: usize, transfer_length: u32){
+        // log
+        // err
+        if let Some(w) = self.class_drivers[ep_id.number() as usize].as_deref() {
+            // w.on_interrupt_completed(ep_id, data_stage_buffer, transfer_length);
+            todo!("クラスドライバを実装したら呼び出す")
+        }   
+    }
+
+    fn initialize_phase1(&self) {
+
+    }
+
+    fn initialize_phase2(&self) {
+        
+    }
+
+    fn initialize_phase3(&self) {
+        
     }
 }
