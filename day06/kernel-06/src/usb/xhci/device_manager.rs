@@ -52,4 +52,12 @@ impl DeviceManager{
         let dev = self.devices[slot_id].as_deref();
         dev
     }
+
+    pub fn find_by_slot_mut(&mut self, slot_id: usize) -> Option<&mut Device<XhciDevice>>{
+        if slot_id > self.max_slots {
+            return None
+        }
+        let dev = self.devices[slot_id].as_deref_mut();
+        dev
+    }
 }
