@@ -1,67 +1,69 @@
-use core::default;
-
 use modular_bitfield::prelude::*;
 
-// --- bmRequestType recipient ---
-pub const RECIPIENT_DEVICE: u8 = 0;
-pub const RECIPIENT_INTERFACE: u8 = 1;
-pub const RECIPIENT_ENDPOINT: u8 = 2;
-pub const RECIPIENT_OTHER: u8 = 3;
+pub mod request_type {
+    // --- bmRequestType recipient ---
+    pub const RECIPIENT_DEVICE: u8 = 0;
+    pub const RECIPIENT_INTERFACE: u8 = 1;
+    pub const RECIPIENT_ENDPOINT: u8 = 2;
+    pub const RECIPIENT_OTHER: u8 = 3;
 
-// --- bmRequestType type ---
-pub const REQ_TYPE_STANDARD: u8 = 0;
-pub const REQ_TYPE_CLASS: u8 = 1;
-pub const REQ_TYPE_VENDOR: u8 = 2;
+    // --- bmRequestType type ---
+    pub const TYPE_STANDARD: u8 = 0;
+    pub const TYPE_CLASS: u8 = 1;
+    pub const TYPE_VENDOR: u8 = 2;
 
-// --- bmRequestType direction ---
-pub const DIR_OUT: u8 = 0;
-pub const DIR_IN: u8 = 1;
+    // --- bmRequestType direction ---
+    pub const DIR_OUT: u8 = 0;
+    pub const DIR_IN: u8 = 1;
+}
 
-// --- request ---
-pub const REQ_GET_STATUS: u8 = 0;
-pub const REQ_CLEAR_FEATURE: u8 = 1;
-pub const REQ_SET_FEATURE: u8 = 3;
-pub const REQ_SET_ADDRESS: u8 = 5;
-pub const REQ_GET_DESCRIPTOR: u8 = 6;
-pub const REQ_SET_DESCRIPTOR: u8 = 7;
-pub const REQ_GET_CONFIGURATION: u8 = 8;
-pub const REQ_SET_CONFIGURATION: u8 = 9;
-pub const REQ_GET_INTERFACE: u8 = 10;
-pub const REQ_SET_INTERFACE: u8 = 11;
-pub const REQ_SYNCH_FRAME: u8 = 12;
-pub const REQ_SET_ENCRYPTION: u8 = 13;
-pub const REQ_GET_ENCRYPTION: u8 = 14;
-pub const REQ_SET_HANDSHAKE: u8 = 15;
-pub const REQ_GET_HANDSHAKE: u8 = 16;
-pub const REQ_SET_CONNECTION: u8 = 17;
-pub const REQ_SET_SECURITY_DATA: u8 = 18;
-pub const REQ_GET_SECURITY_DATA: u8 = 19;
-pub const REQ_SET_WUSB_DATA: u8 = 20;
-pub const REQ_LOOPBACK_DATA_WRITE: u8 = 21;
-pub const REQ_LOOPBACK_DATA_READ: u8 = 22;
-pub const REQ_SET_INTERFACE_DS: u8 = 23;
-pub const REQ_SET_SEL: u8 = 48;
-pub const REQ_SET_ISOCH_DELAY: u8 = 49;
+pub mod request {
+    pub const GET_STATUS: u8 = 0;
+    pub const CLEAR_FEATURE: u8 = 1;
+    pub const SET_FEATURE: u8 = 3;
+    pub const SET_ADDRESS: u8 = 5;
+    pub const GET_DESCRIPTOR: u8 = 6;
+    pub const SET_DESCRIPTOR: u8 = 7;
+    pub const GET_CONFIGURATION: u8 = 8;
+    pub const SET_CONFIGURATION: u8 = 9;
+    pub const GET_INTERFACE: u8 = 10;
+    pub const SET_INTERFACE: u8 = 11;
+    pub const SYNCH_FRAME: u8 = 12;
+    pub const SET_ENCRYPTION: u8 = 13;
+    pub const GET_ENCRYPTION: u8 = 14;
+    pub const SET_HANDSHAKE: u8 = 15;
+    pub const GET_HANDSHAKE: u8 = 16;
+    pub const SET_CONNECTION: u8 = 17;
+    pub const SET_SECURITY_DATA: u8 = 18;
+    pub const GET_SECURITY_DATA: u8 = 19;
+    pub const SET_WUSB_DATA: u8 = 20;
+    pub const LOOPBACK_DATA_WRITE: u8 = 21;
+    pub const LOOPBACK_DATA_READ: u8 = 22;
+    pub const SET_INTERFACE_DS: u8 = 23;
+    pub const SET_SEL: u8 = 48;
+    pub const SET_ISOCH_DELAY: u8 = 49;
 
-// HID class specific report values
-pub const REQ_GET_REPORT: u8 = 1;
-pub const REQ_SET_PROTOCOL: u8 = 11;
+    // HID class specific report values
+    pub const HID_GET_REPORT: u8 = 1;
+    pub const HID_SET_PROTOCOL: u8 = 11;
+}
 
-// --- descriptor_type ---
-pub const DESC_DEVICE: u8 = 1;
-pub const DESC_CONFIGURATION: u8 = 2;
-pub const DESC_STRING: u8 = 3;
-pub const DESC_INTERFACE: u8 = 4;
-pub const DESC_ENDPOINT: u8 = 5;
-pub const DESC_INTERFACE_POWER: u8 = 8;
-pub const DESC_OTG: u8 = 9;
-pub const DESC_DEBUG: u8 = 10;
-pub const DESC_INTERFACE_ASSOCIATION: u8 = 11;
-pub const DESC_BOS: u8 = 15;
-pub const DESC_DEVICE_CAPABILITY: u8 = 16;
-pub const DESC_HID: u8 = 33;
-pub const DESC_SUPERSPEED_USB_ENDPOINT_COMPANION: u8 = 48;
-pub const DESC_SUPERSPEED_PLUS_ISOCHRONOUS_ENDPOINT_COMPANION: u8 = 49;
+pub mod descriptor_type {
+    pub const DEVICE: u8 = 1;
+    pub const CONFIGURATION: u8 = 2;
+    pub const STRING: u8 = 3;
+    pub const INTERFACE: u8 = 4;
+    pub const ENDPOINT: u8 = 5;
+    pub const INTERFACE_POWER: u8 = 8;
+    pub const OTG: u8 = 9;
+    pub const DEBUG: u8 = 10;
+    pub const INTERFACE_ASSOCIATION: u8 = 11;
+    pub const BOS: u8 = 15;
+    pub const DEVICE_CAPABILITY: u8 = 16;
+    pub const HID: u8 = 33;
+    pub const SUPERSPEED_USB_ENDPOINT_COMPANION: u8 = 48;
+    pub const SUPERSPEED_PLUS_ISOCHRONOUS_ENDPOINT_COMPANION: u8 = 49;
+}
 
 // C++のunionのbits部分をbitfieldで表現
 #[bitfield(bits = 8)]
@@ -83,8 +85,8 @@ pub struct SetupData {
     pub length: u16,
 }
 
-impl SetupData{
-    pub fn request_type_as_u8(&self) -> u8{
+impl SetupData {
+    pub fn request_type_as_u8(&self) -> u8 {
         self.request_type.into_bytes()[0]
     }
 }

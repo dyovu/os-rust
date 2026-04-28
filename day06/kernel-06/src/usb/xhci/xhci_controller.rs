@@ -281,7 +281,7 @@ impl Controller {
                 }
 
                 let port_id = dev.controller.device_context().slot_context().root_hub_port_num() as usize;
-                if dev.is_initialized() && self.port_config_phase[port_id] == ConfigPhase::InitializingDevice{
+                if dev.is_initialized && self.port_config_phase[port_id] == ConfigPhase::InitializingDevice{
                     // devのmutableな借用は↑上のifが最後
                     // そのため、これ以降の行ではselfのアクセスができる
                     // port_config_phaseにアクセスできるのは借用チェッカーがフィールドごとに行われているから
