@@ -25,12 +25,12 @@ pub trait UsbDevice {
 // device固有の処理は各device構造体にやらせて、controllerの処理はcontroller側で行う
 pub enum TransferEventResult {
     InterruptCompleted {
-        ep_id: u8,
+        ep_id: EndpointID,
         buffer: usize,
         transfer_length: u32,
     },
     ControlCompleted {
-        ep_id: u8,
+        ep_id: EndpointID,
         setup_data: SetupData,
         data_stage_buffer: usize,
         transfer_length: usize,

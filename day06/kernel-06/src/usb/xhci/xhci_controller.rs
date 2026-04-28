@@ -11,6 +11,7 @@ use crate::usb::xhci::context::DeviceContext;
 use crate::usb::xhci::trb::*;
 use crate::usb::xhci::port::Port;
 use crate::usb::memory_alloc::MEMORY_POOL;
+use crate::usb::device::TransferEventResult;
 
  #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum ConfigPhase {
@@ -270,10 +271,20 @@ impl Controller {
         let slot_id = trb.slot_id();
         match self.device_manager.find_by_slot_mut(slot_id as usize){
             Some(dev) => {
-                dev.controller.on_transfer_event_received(trb);
+                match dev.controller.on_transfer_event_received(trb).unwrap(){
+                    TransferEventResult::ControlCompleted { ep_id, setup_data, data_stage_buffer, transfer_length } => {
+                        dev.on_control_completed(ep_id, setup_data, data_stage_buffer, transfer_length);
+                    }
+                    TransferEventResult::InterruptCompleted { ep_id, buffer, transfer_length } => {
+                        dev.on_interrupt_completed(ep_id, buffer, transfer_length)
+                    }
+                }
 
                 let port_id = dev.controller.device_context().slot_context().root_hub_port_num() as usize;
                 if dev.is_initialized() && self.port_config_phase[port_id] == ConfigPhase::InitializingDevice{
+                    // devのmutableな借用は↑上のifが最後
+                    // そのため、これ以降の行ではselfのアクセスができる
+                    // port_config_phaseにアクセスできるのは借用チェッカーがフィールドごとに行われているから
                     self.configure_endpoints()
                 }
             }

@@ -55,7 +55,7 @@ impl XhciDevice{
         if let Some(normal_trb) = unsafe{ trb_dynamic_cast::<NormalTRB>(issuer_trb) }{
             let transfer_length = normal_trb.trb_transfer_length() - residual_length;
             return Ok(TransferEventResult::InterruptCompleted{
-                ep_id: trb.endpoint_id(),
+                ep_id: EndpointID::from_addr(trb.endpoint_id()),
                 buffer: normal_trb.pointer() as usize,
                 transfer_length: transfer_length,
             })
@@ -93,7 +93,7 @@ impl XhciDevice{
         }
 
         Ok(TransferEventResult::ControlCompleted{
-            ep_id: trb.endpoint_id(),
+            ep_id: EndpointID::from_addr(trb.endpoint_id()),
             setup_data,
             data_stage_buffer,
             transfer_length
