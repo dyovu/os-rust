@@ -12,6 +12,7 @@ use crate::usb::classdriver::base::ClassDriver;
 use crate::usb::setupdata::{SetupData, request_type, request, descriptor_type};
 use crate::usb::memory_alloc::ArrayMap;
 use crate::usb::endpoint::{EndpointConfig, EndpointID};
+use crate::usb::descriptor::{descriptor_dynamic_cast, DeviceDescriptor, ConfigurationDescriptor};
 
 // 全ての規格のUSBが実装するべきメソッド
 pub trait UsbDevice {
@@ -96,23 +97,28 @@ impl <C: UsbDevice> Device<C>{
             }
         }
 
+        let buf_u8 = unsafe { core::slice::from_raw_parts(data_stage_buffer as *const u8, transfer_length) };
+
         // 初期化が終わってない場合、初期化していく
         match self.initialize_phase{
             1 => {
-                if setup_data.request == request::GET_DESCRIPTOR &&  {
-                    self.initialize_phase1();
+                if setup_data.request == request::GET_DESCRIPTOR{
+                    if let Some(buf) = descriptor_dynamic_cast::<DeviceDescriptor>(buf_u8){
+                        self.initialize_phase1(buf, buf_u8.len());
+                    }
                 }
             }
             2 => {
-                if setup_data.request == request::GET_DESCRIPTOR &&  {
-                    self.initialize_phase2();
+                if setup_data.request == request::GET_DESCRIPTOR{
+                    if let Some(buf) = descriptor_dynamic_cast::<ConfigurationDescriptor>(buf_u8){
+                        self.initialize_phase2(buf, buf_u8.len());
+                    }
                 }
             }
             3 => {
-                if setup_data.request == request::SET_CONFIGURATION &&  {
-                    self.initialize_phase3();
+                if setup_data.request == request::SET_CONFIGURATION{
+                    self.initialize_phase3(setup_data.value as u8); // 下位8bitだけ残す
                 }
-
             }
             _ => {
                 todo!("エラーハンドリングする")
@@ -129,15 +135,15 @@ impl <C: UsbDevice> Device<C>{
         }   
     }
 
-    fn initialize_phase1(&self) {
+    fn initialize_phase1(&self, buf: &DeviceDescriptor, len: usize){
 
     }
 
-    fn initialize_phase2(&self) {
+    fn initialize_phase2(&self, buf: &ConfigurationDescriptor, len: usize){
         
     }
 
-    fn initialize_phase3(&self) {
+    fn initialize_phase3(&self, config_value: u8){
         
     }
 }
