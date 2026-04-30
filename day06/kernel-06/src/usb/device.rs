@@ -50,6 +50,8 @@ pub struct Device<C: UsbDevice> {
     pub ep_configs: [EndpointConfig; 16],
     pub num_ep_configs: usize,
     pub event_waiters: ArrayMap<SetupData, usize, 4>, // usizeはクラスドライバのアドレス
+    pub num_configurations: u8,
+    pub config_index: u8,
 }
 
 impl <C: UsbDevice> Device<C>{
@@ -63,6 +65,10 @@ impl <C: UsbDevice> Device<C>{
             ep_configs: core::array::from_fn(|_| EndpointConfig::default()),
             num_ep_configs: 0,
             event_waiters: ArrayMap::new(),
+
+            // ゼロで初期化するだけで、実際の値はinitialize_phase1()の中でセットする
+            num_configurations: 0,
+            config_index: 0
         }
     }
 
@@ -135,8 +141,12 @@ impl <C: UsbDevice> Device<C>{
         }   
     }
 
-    fn initialize_phase1(&self, buf: &DeviceDescriptor, len: usize){
-
+    fn initialize_phase1(&mut self, device_desc: &DeviceDescriptor, len: usize){
+        self.num_configurations = device_desc.num_configurations;
+        self.config_index = 0;
+        self.initialize_phase = 2;
+        // log
+        // err
     }
 
     fn initialize_phase2(&self, buf: &ConfigurationDescriptor, len: usize){
