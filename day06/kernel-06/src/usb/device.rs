@@ -154,6 +154,14 @@ impl <C: UsbDevice> Device<C>{
     }
 
     fn initialize_phase3(&self, config_value: u8){
-        
+        for i in 0..self.num_ep_configs {
+            let index = self.ep_configs[i].ep_id.number() as usize;
+            if let  Some(class_driver) = self.class_drivers[index].as_deref(){
+                class_driver.set_endpoint(self.ep_configs[i]);
+            }
+        }
+        self.initialize_phase = 4;
+        self.is_initialized = true;
+        // err
     }
 }
