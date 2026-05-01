@@ -178,6 +178,8 @@ impl <C: UsbDevice> Device<C>{
         self.num_configurations = device_desc.num_configurations;
         self.config_index = 0;
         self.initialize_phase = 2;
+
+        self.get_descriptor();
         // log
         // err
     }
@@ -236,5 +238,13 @@ impl <C: UsbDevice> Device<C>{
     fn make_config(&self, ep_desc: &EndpointDescriptor) -> Option<> {
 
         None
+    }
+
+    fn get_descriptor() {
+        
+    }
+
+    fn set_configuration() {
+
     }
 }
