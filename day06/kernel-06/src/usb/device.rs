@@ -60,7 +60,11 @@ impl<'a> Iterator for ConfigurationDescriptorReader<'a>{
 }
 
 impl<'a> ConfigurationDescriptorReader<'a>{
-    // 指定したdescriptorの要素
+    pub fn new(remaining: &'a [u8]) -> Self {
+        Self { remaining }
+    }
+    // find_mapは指定したdescriptorの最初の要素を返す、なければNoneを返す
+    // ConfigurationDescriptorReaderがiteratorトレイトを実装しているから使える
     pub fn next_typed<T: Descriptor>(&mut self) -> Option<&T> {
         self.find_map(|buf| descriptor_dynamic_cast::<T>(buf))
     }
