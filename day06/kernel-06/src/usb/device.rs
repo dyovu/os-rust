@@ -12,7 +12,7 @@ use crate::usb::classdriver::base::ClassDriver;
 use crate::usb::setupdata::{SetupData, request_type, request, descriptor_type};
 use crate::usb::memory_alloc::ArrayMap;
 use crate::usb::endpoint::{EndpointConfig, EndpointID};
-use crate::usb::descriptor::{descriptor_dynamic_cast, DeviceDescriptor, ConfigurationDescriptor};
+use crate::usb::descriptor::{descriptor_dynamic_cast, Descriptor, DeviceDescriptor, ConfigurationDescriptor};
 
 // 全ての規格のUSBが実装するべきメソッド
 pub trait UsbDevice {
@@ -36,6 +36,34 @@ pub enum TransferEventResult {
         data_stage_buffer: usize,
         transfer_length: usize,
     },
+}
+
+pub struct ConfigurationDescriptorReader<'a> {
+    // 「現在位置から末尾まで」を表すスライス
+    // p_ と (desc_buf_ + desc_buf_len_ - p_) の情報が1つに収まっている
+    remaining: &'a [u8],
+}
+
+impl<'a> Iterator for ConfigurationDescriptorReader<'a>{
+    type Item = &'a [u8];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // current が None なら即終了（? がNoneを返す）
+        if self.remaining.is_empty() {
+            return None;
+        }
+        let len = self.remaining[0] as usize; // 現在のディスクリプタの長さ
+        let current = &self.remaining[..len]; // 現在のディスクリプタ
+        self.remaining = &self.remaining[len..]; // remainingを1ディスクリプタ分進める
+        Some(current)
+    }
+}
+
+impl<'a> ConfigurationDescriptorReader<'a>{
+    // 指定したdescriptorの要素
+    pub fn next_typed<T: Descriptor>(&mut self) -> Option<&T> {
+        self.find_map(|buf| descriptor_dynamic_cast::<T>(buf))
+    }
 }
 
 // 共通フィールドの構造体
@@ -110,7 +138,7 @@ impl <C: UsbDevice> Device<C>{
             1 => {
                 if setup_data.request == request::GET_DESCRIPTOR{
                     if let Some(buf) = descriptor_dynamic_cast::<DeviceDescriptor>(buf_u8){
-                        self.initialize_phase1(buf, buf_u8.len());
+                        self.initialize_phase1(buf);
                     }
                 }
             }
@@ -141,7 +169,7 @@ impl <C: UsbDevice> Device<C>{
         }   
     }
 
-    fn initialize_phase1(&mut self, device_desc: &DeviceDescriptor, len: usize){
+    fn initialize_phase1(&mut self, device_desc: &DeviceDescriptor){
         self.num_configurations = device_desc.num_configurations;
         self.config_index = 0;
         self.initialize_phase = 2;
@@ -149,7 +177,7 @@ impl <C: UsbDevice> Device<C>{
         // err
     }
 
-    fn initialize_phase2(&self, buf: &ConfigurationDescriptor, len: usize){
+    fn initialize_phase2(&self, conf_desc: &ConfigurationDescriptor, len: usize){
         
     }
 
