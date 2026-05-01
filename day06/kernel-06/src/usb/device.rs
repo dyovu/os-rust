@@ -12,7 +12,7 @@ use crate::usb::classdriver::base::ClassDriver;
 use crate::usb::setupdata::{SetupData, request_type, request, descriptor_type};
 use crate::usb::memory_alloc::ArrayMap;
 use crate::usb::endpoint::{EndpointConfig, EndpointID};
-use crate::usb::descriptor::{descriptor_dynamic_cast, Descriptor, DeviceDescriptor, ConfigurationDescriptor};
+use crate::usb::descriptor::{descriptor_dynamic_cast, Descriptor, DeviceDescriptor, ConfigurationDescriptor, InterfaceDescriptor, EndpointDescriptor, HIDDescriptor};
 
 // 全ての規格のUSBが実装するべきメソッド
 pub trait UsbDevice {
@@ -38,6 +38,7 @@ pub enum TransferEventResult {
     },
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct ConfigurationDescriptorReader<'a> {
     // 「現在位置から末尾まで」を表すスライス
     // p_ と (desc_buf_ + desc_buf_len_ - p_) の情報が1つに収まっている
@@ -135,7 +136,7 @@ impl <C: UsbDevice> Device<C>{
             }
         }
 
-        let buf_u8 = unsafe { core::slice::from_raw_parts(data_stage_buffer as *const u8, transfer_length) };
+        let buf_u8: &[u8] = unsafe { core::slice::from_raw_parts(data_stage_buffer as *const u8, transfer_length) };
 
         // 初期化が終わってない場合、初期化していく
         match self.initialize_phase{
@@ -149,7 +150,7 @@ impl <C: UsbDevice> Device<C>{
             2 => {
                 if setup_data.request == request::GET_DESCRIPTOR{
                     if let Some(buf) = descriptor_dynamic_cast::<ConfigurationDescriptor>(buf_u8){
-                        self.initialize_phase2(buf, buf_u8.len());
+                        self.initialize_phase2(buf_u8);
                     }
                 }
             }
@@ -181,8 +182,38 @@ impl <C: UsbDevice> Device<C>{
         // err
     }
 
-    fn initialize_phase2(&self, conf_desc: &ConfigurationDescriptor, len: usize){
-        
+    fn initialize_phase2(&self, buf_u8: &[u8]){
+        let mut config_reader = ConfigurationDescriptorReader::new(buf_u8);
+        let mut class_driver = None;
+
+        while let Some(if_desc) = config_reader.next_typed::<InterfaceDescriptor>(){
+            class_driver = self.new_class_driver(if_desc);
+
+            let num_ep_configs = 0;
+            while num_ep_configs < if_desc.num_endpoints{
+                let desc = config_reader.next().unwrap_or_else(break);
+                if let Some(ep_desc) = descriptor_dynamic_cast::<EndpointDescriptor>(desc){
+                    let config = self.make_config(ep_desc);
+                    self.ep_configs[num_ep_configs as usize] = config;
+                    num_ep_configs += 1;
+
+                    self.class_drivers[config.ep_id.number()] = class_driver;
+                }else if let Some(hid_desc) = descriptor_dynamic_cast::<HIDDescriptor>(desc){
+                    // log
+                }
+            }
+
+            // 最初に対応したインターフェースが見つかったらbreakする
+            break;
+        }
+
+        if class_driver == None {
+            // log
+            // err
+            return 
+        }
+        self.initialize_phase = 3;
+        self.set_configuration();
     }
 
     fn initialize_phase3(&self, config_value: u8){
@@ -195,5 +226,15 @@ impl <C: UsbDevice> Device<C>{
         self.initialize_phase = 4;
         self.is_initialized = true;
         // err
+    }
+
+    fn new_class_driver(&self, if_desc: &InterfaceDescriptor) -> Option<> {
+
+        None
+    }
+
+    fn make_config(&self, ep_desc: &EndpointDescriptor) -> Option<> {
+
+        None
     }
 }
