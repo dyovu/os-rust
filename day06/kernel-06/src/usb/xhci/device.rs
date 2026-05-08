@@ -22,12 +22,12 @@ enum State {
     SlotAssigned,
 }
 pub struct XhciDevice{
-    slot_id: u8,
-    state: State,
+    pub slot_id: u8,
+    pub state: State,
     transfer_rings: [Option<Ring>; 31],
-    ctx: DeviceContext,
-    input_ctx: InputContext,
-    dbreg_addr: usize, // ドアベルレジスタのアドレス
+    pub ctx: DeviceContext,
+    pub input_ctx: InputContext,
+    pub dbreg_addr: usize, // ドアベルレジスタのアドレス
     setup_stage_map: ArrayMap<usize, SetupStageTRB, 16>, // 参照とかポインタで持つのはunsafeになったりするので値を保つ
 }
 
