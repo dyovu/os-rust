@@ -4,14 +4,20 @@
 // xHCI ホストコントローラ制御用クラス．
 // ================================================================
 
+use alloc::boxed::Box;
+
 use crate::usb::xhci::registers::{CapabilityRegisters, OperationalRegisters, InterrupterRegisterSet, PortRegisterSet, ExtendedRegisterList, UsblegsupRegister, DoorbellRegister, Dcbaap, ArrayWrapper};
 use crate::usb::xhci::device_manager::{DeviceManager};
 use crate::usb::xhci::ring::{Ring, EventRing};
-use crate::usb::xhci::context::DeviceContext;
+use crate::usb::xhci::context::{InputControlContext, SlotContext, DeviceContextIndex};
 use crate::usb::xhci::trb::*;
 use crate::usb::xhci::port::Port;
 use crate::usb::memory_alloc::MEMORY_POOL;
 use crate::usb::device::TransferEventResult;
+use crate::usb::device::Device;
+use crate::usb::xhci::device::XhciDevice;
+use crate::usb::xhci::speed::{FullSpeed, LowSpeed, SuperSpeedPlus};
+use crate::usb::endpoint::EndpointType;
 
  #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum ConfigPhase {
@@ -183,8 +189,57 @@ impl Controller {
 
     }
 
-    pub fn configure_endpoints(&self) {
+    pub fn configure_endpoints(&mut self, slot_id: usize) {
+        match self.device_manager.find_by_slot_mut(slot_id as usize){
+            Some(dev) => {
+                // let configs = &dev.ep_configs;
+                let len = dev.num_ep_configs;
 
+                // dev.controller.input_context_mut()がcontroller全体の可変借用を求めるため
+                // ここの普遍な借用はその都度呼び出す
+
+                unsafe{
+                    let input_context = dev.controller.input_context_mut();
+                    let dst = input_context.input_control_context_mut() as *mut InputControlContext;
+                    core::ptr::write_bytes(dst, 0, 1);
+                }
+
+                let slot_context_input = &dev.controller.input_ctx.slot_context;
+                unsafe{
+                    let slot_context_device = dev.controller.ctx.slot_context_mut();
+                    let dst = slot_context_device as *mut SlotContext;
+                    core::ptr::copy_nonoverlapping(slot_context_input, slot_context_device, 1);
+                }
+
+                let slot_ctx = dev.controller.input_ctx.enable_slot_context();
+                slot_ctx.set_context_entries(31);
+
+                let port_id = dev.controller.ctx.slot_context.root_hub_port_num();
+                let port_speed = self.port_at(port_id).port_speed();
+                if port_speed == 0 || port_speed > SuperSpeedPlus{
+                    // err
+                    return 
+                }
+
+                let convert_interval: fn(EndpointType, u8) -> u8 =
+                if port_speed == FullSpeed || port_speed == LowSpeed {
+                    |ep_type, interval| {
+                        if ep_type == EndpointType::Isochronous {
+                            interval + 2
+                        } else {
+                            most_significant_bit(interval) + 3
+                        }
+                    }
+                } else {
+                    |_ep_type, interval| interval - 1
+                };
+
+                for i in 0..len{
+                    let ep_dci = DeviceContextIndex::new(dev.ep_configs[i].ep_id.address());
+                }
+            }
+            None =>{}
+        }
     }
 
     pub fn process_event(&mut self) {
@@ -280,12 +335,12 @@ impl Controller {
                     }
                 }
 
-                let port_id = dev.controller.device_context().slot_context().root_hub_port_num() as usize;
+                let port_id = dev.controller.ctx.slot_context.root_hub_port_num() as usize;
                 if dev.is_initialized && self.port_config_phase[port_id] == ConfigPhase::InitializingDevice{
                     // devのmutableな借用は↑上のifが最後
                     // そのため、これ以降の行ではselfのアクセスができる
                     // port_config_phaseにアクセスできるのは借用チェッカーがフィールドごとに行われているから
-                    self.configure_endpoints()
+                    self.configure_endpoints(slot_id as usize);
                 }
             }
             None => {
@@ -341,4 +396,14 @@ impl Controller {
     fn enable_slot(&self) {
         
     }
+
+    fn most_significant_bit(&self, value: u8) -> u8 {
+        31 - value.leading_zeros() as u8
+    }
+}
+
+// util関数
+
+fn most_significant_bit(value: u8) -> u8 {
+    31 - value.leading_zeros() as u8
 }
