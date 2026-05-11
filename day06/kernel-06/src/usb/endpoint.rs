@@ -10,8 +10,8 @@ use core::default;
 // デフォルトコントロールパイプ（エンドポイント0, IN）
 const DEFAULT_CONTROL_PIPE_ID: EndpointID = EndpointID::from_parts(0, true);
 
-// #[repr(u8)]
-enum EndpointType{
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EndpointType{
     Control = 0,
     Isochronous = 1,
     Bulk = 2,
@@ -35,6 +35,7 @@ impl EndpointID{
     pub fn new() -> Self{
         Self { addr: 0 }
     }
+
     pub fn from_addr(addr: u8) -> Self{
         Self{ addr }
     }
@@ -64,7 +65,7 @@ impl EndpointID{
     
 }
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct EndpointConfig{
     pub ep_id: EndpointID,
     pub ep_type: EndpointType,

@@ -7,3 +7,4 @@ pub mod context;
 pub mod trb;
 pub mod ring;
 pub mod port;
+pub mod speed;

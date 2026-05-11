@@ -17,4 +17,11 @@ impl Port{
             port_reg_set_addr,
         }
     }
+
+    pub fn port_speed(&self) -> u8{
+        let port_reg_set = self.port_reg_set_addr as *const PortRegisterSet;
+        unsafe{
+            (*port_reg_set).PORTSC.read().port_speed()
+        }
+    }
 }
