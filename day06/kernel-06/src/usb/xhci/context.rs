@@ -119,8 +119,8 @@ impl DeviceContext{
         }
     }
 
-    pub fn slot_context(&self) -> &SlotContext{
-        &self.slot_context
+    pub fn slot_context_mut(&mut self) -> &mut SlotContext{
+        &mut self.slot_context
     }
 }
 
@@ -165,5 +165,9 @@ impl InputContext {
     pub fn enable_endpoint(&mut self, dci: DeviceContextIndex) -> &mut EndpointContext {
         self.input_control_context.add_context_flags |= 1 << dci.value;
         &mut self.ep_contexts[(dci.value - 1) as usize]
+    }
+
+    pub fn input_control_context_mut(&mut self) -> &mut InputControlContext{
+        &mut self.input_control_context
     }
 }

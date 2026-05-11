@@ -100,8 +100,12 @@ impl XhciDevice{
         })
     }
 
-    pub fn device_context(&self) -> &DeviceContext {
-        &self.ctx
+    pub fn device_context_mut(&mut self) -> &mut DeviceContext {
+        &mut self.ctx
+    }
+
+    pub fn input_context_mut(&mut self) -> &mut InputContext{
+        &mut self.input_ctx
     }
 
     fn make_SetupStageTRB(setup_data: SetupData, transfer_type: u8) -> SetupStageTRB {
