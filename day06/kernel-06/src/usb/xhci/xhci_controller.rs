@@ -17,7 +17,7 @@ use crate::usb::device::TransferEventResult;
 use crate::usb::device::Device;
 use crate::usb::xhci::device::XhciDevice;
 use crate::usb::xhci::speed::{FullSpeed, LowSpeed, SuperSpeedPlus};
-use crate::usb::endpoint::EndpointType;
+use crate::usb::endpoint::{EndpointType, EndpointConfig};
 
  #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum ConfigPhase {
@@ -190,56 +190,89 @@ impl Controller {
     }
 
     pub fn configure_endpoints(&mut self, slot_id: usize) {
-        match self.device_manager.find_by_slot_mut(slot_id as usize){
-            Some(dev) => {
-                // let configs = &dev.ep_configs;
-                let len = dev.num_ep_configs;
-
-                // dev.controller.input_context_mut()がcontroller全体の可変借用を求めるため
-                // ここの普遍な借用はその都度呼び出す
-
-                unsafe{
-                    let input_context = dev.controller.input_context_mut();
-                    let dst = input_context.input_control_context_mut() as *mut InputControlContext;
-                    core::ptr::write_bytes(dst, 0, 1);
-                }
-
-                let slot_context_input = &dev.controller.input_ctx.slot_context;
-                unsafe{
-                    let slot_context_device = dev.controller.ctx.slot_context_mut();
-                    let dst = slot_context_device as *mut SlotContext;
-                    core::ptr::copy_nonoverlapping(slot_context_input, slot_context_device, 1);
-                }
-
-                let slot_ctx = dev.controller.input_ctx.enable_slot_context();
-                slot_ctx.set_context_entries(31);
-
-                let port_id = dev.controller.ctx.slot_context.root_hub_port_num();
-                let port_speed = self.port_at(port_id).port_speed();
-                if port_speed == 0 || port_speed > SuperSpeedPlus{
-                    // err
-                    return 
-                }
-
-                let convert_interval: fn(EndpointType, u8) -> u8 =
-                if port_speed == FullSpeed || port_speed == LowSpeed {
-                    |ep_type, interval| {
-                        if ep_type == EndpointType::Isochronous {
-                            interval + 2
-                        } else {
-                            most_significant_bit(interval) + 3
-                        }
-                    }
-                } else {
-                    |_ep_type, interval| interval - 1
-                };
-
-                for i in 0..len{
-                    let ep_dci = DeviceContextIndex::new(dev.ep_configs[i].ep_id.address());
-                }
+        let (port_id, len, configs) = {
+            let dev = match self.device_manager.find_by_slot_mut(slot_id) {
+                Some(d) => d,
+                None => return,
+            };
+            let port_id = dev.controller.ctx.slot_context.root_hub_port_num();
+            let len = dev.num_ep_configs;
+            let mut configs = [EndpointConfig::default(); 16];
+            for i in 0..len {
+                configs[i] = dev.ep_configs[i];
             }
-            None =>{}
+            (port_id, len, configs)
+        };
+
+        let port_speed = self.port_at(port_id).port_speed();
+        if port_speed == 0 || port_speed > SuperSpeedPlus {
+            return;
         }
+
+        let convert_interval: fn(EndpointType, u8) -> u8 =
+            if port_speed == FullSpeed || port_speed == LowSpeed {
+                |ep_type, interval| {
+                    if ep_type == EndpointType::Isochronous {
+                        interval + 2
+                    } else {
+                        most_significant_bit(interval) + 3
+                    }
+                }
+            } else {
+                |_ep_type, interval| interval - 1
+            };
+
+        let (input_ctx_addr, slot_id_for_trb) = {
+            let dev = match self.device_manager.find_by_slot_mut(slot_id) {
+                Some(d) => d,
+                None => return,
+            };
+
+            unsafe {
+                let icc = dev.controller.input_ctx.input_control_context_mut()
+                    as *mut InputControlContext;
+                core::ptr::write_bytes(icc, 0, 1);
+            }
+
+            let src: *const SlotContext = &dev.controller.ctx.slot_context;
+            let dst: *mut SlotContext   = &mut dev.controller.input_ctx.slot_context;
+            unsafe { core::ptr::copy_nonoverlapping(src, dst, 1); }
+
+            let slot_ctx = dev.controller.input_ctx.enable_slot_context();
+            slot_ctx.set_context_entries(31);
+
+            for i in 0..len {
+                let cnf: EndpointConfig = configs[i];
+                let ep_dci = DeviceContextIndex::new(cnf.ep_id.address());
+                let interval = convert_interval(cnf.ep_type, cnf.interval as u8);
+
+                let tr_addr = dev.alloc_transfer_ring(ep_dci, 32).buf_addr();
+
+                let ep_ctx = dev.controller.input_ctx.enable_endpoint(ep_dci);
+                let ep_type_val: u8 = match cnf.ep_type {
+                    EndpointType::Control     => 4,
+                    EndpointType::Isochronous => if cnf.ep_id.is_in() { 5 } else { 1 },
+                    EndpointType::Bulk        => if cnf.ep_id.is_in() { 6 } else { 2 },
+                    EndpointType::Interrupt   => if cnf.ep_id.is_in() { 7 } else { 3 },
+                };
+                ep_ctx.set_ep_type(ep_type_val);
+                ep_ctx.set_max_packet_size(cnf.max_packet_size as u16);
+                ep_ctx.set_interval(interval);
+                ep_ctx.set_average_trb_length(1);
+                ep_ctx.set_transfer_ring_buffer(tr_addr);
+                ep_ctx.set_dequeue_cycle_state(1);
+                ep_ctx.set_max_primary_streams(0);
+                ep_ctx.set_mult(0);
+                ep_ctx.set_error_count(3);
+            }
+
+            let addr = &dev.controller.input_ctx as *const _ ;
+            (addr, dev.controller.slot_id)
+        };
+
+        self.port_config_phase[port_id as usize] = ConfigPhase::ConfiguringEndpoints;
+        let cmd = ConfigureEndpointCommandTRB::initialize(input_ctx_addr, slot_id_for_trb);
+        self.push_trb(&cmd.into_bytes());
     }
 
     pub fn process_event(&mut self) {
