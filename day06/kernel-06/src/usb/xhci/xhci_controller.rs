@@ -246,7 +246,7 @@ impl Controller {
                 let ep_dci = DeviceContextIndex::new(cnf.ep_id.address());
                 let interval = convert_interval(cnf.ep_type, cnf.interval as u8);
 
-                let tr_addr = dev.alloc_transfer_ring(ep_dci, 32).buf_addr();
+                let tr_addr = dev.controller.alloc_transfer_ring(ep_dci, 32);
 
                 let ep_ctx = dev.controller.input_ctx.enable_endpoint(ep_dci);
                 let ep_type_val: u8 = match cnf.ep_type {
