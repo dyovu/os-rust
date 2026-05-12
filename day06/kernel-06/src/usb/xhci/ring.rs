@@ -8,7 +8,7 @@ use crate::usb::memory_alloc::MEMORY_POOL;
 use crate::usb::xhci::trb::{TRB, LinkTRB};
 use crate::usb::xhci::registers::{InterrupterRegisterSet};
 
-
+#[derive(Clone, Copy)]
 pub struct Ring{
     buf_addr: usize,
     buf_size: usize,
@@ -88,6 +88,10 @@ impl Ring{
 
     pub fn cycle_bit (&self) -> bool {
         self.cycle_bit
+    }
+
+    pub fn buf_ptr(&self) -> *const TRB {
+        self.buf_addr as *const TRB
     }
 }
 
