@@ -82,7 +82,7 @@ impl EndpointContext {
 // ================================================================
 #[derive(Copy, Clone)]
 pub struct DeviceContextIndex {
-    value: u8,
+    pub value: u8,
 }
 
 impl DeviceContextIndex {
@@ -97,10 +97,6 @@ impl DeviceContextIndex {
     pub fn from_endpoint_num(ep_num: u8, dir_in: bool) -> Self {
         let direction = if ep_num == 0 { 1 } else if dir_in { 1 } else { 0 };
         Self { value: 2 * ep_num + direction }
-    }
-
-    pub fn value(&self) -> u8{
-        self.value
     }
 }
 

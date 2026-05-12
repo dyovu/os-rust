@@ -13,6 +13,7 @@ use crate::usb::setupdata::{SetupData, RequestType};
 use crate::usb::xhci::trb::{TRB, NormalTRB, SetupStageTRB, DataStageTRB, StatusStageTRB, trb_dynamic_cast, TransferEventTRB};
 use crate::usb::xhci::registers::{DoorbellRegister};
 use crate::usb::device::TransferEventResult;
+use crate::usb::memory_alloc::MEMORY_POOL;
 
 #[derive(Debug, Clone, Copy)]
 enum State {
@@ -108,6 +109,13 @@ impl XhciDevice{
         &mut self.input_ctx
     }
 
+    pub fn alloc_transfer_ring(&mut self, dci:DeviceContextIndex, buf_size: usize) -> *const TRB {
+        let i = dci.value as usize;
+        let ring = Ring::new(buf_size);
+        self.transfer_rings[i] = Some(ring);
+        ring.buf_ptr()
+    }
+
     fn make_SetupStageTRB(setup_data: SetupData, transfer_type: u8) -> SetupStageTRB {
         let mut setup: SetupStageTRB = SetupStageTRB::initialize();
         setup.set_request_type(setup_data.request_type_as_u8());
@@ -140,7 +148,7 @@ impl UsbDevice for XhciDevice{
 
         let dci = DeviceContextIndex::new(ep_id.address());
 
-        let ring = match &mut self.transfer_rings[dci.value() as usize]{
+        let ring = match &mut self.transfer_rings[dci.value as usize]{
             Some(ring) => {
                 ring
             }
@@ -193,7 +201,7 @@ impl UsbDevice for XhciDevice{
 
         // xHCIハードウェアのドアベルレジスタを叩き、メモリ上にTRBを積んだことを通知して実際の通信処理を開始させる
         let door_reg = unsafe{ &mut *(self.dbreg_addr as *mut DoorbellRegister) };
-        door_reg.ring(dci.value(), 0);
+        door_reg.ring(dci.value, 0);
 
         Ok(())
     }
@@ -205,7 +213,7 @@ impl UsbDevice for XhciDevice{
 
         let dci = DeviceContextIndex::new(ep_id.address());
 
-        let ring = match &mut self.transfer_rings[dci.value() as usize]{
+        let ring = match &mut self.transfer_rings[dci.value as usize]{
             Some(ring) => {
                 ring
             }
@@ -246,7 +254,7 @@ impl UsbDevice for XhciDevice{
         }
         
         let door_reg = unsafe{ &mut *(self.dbreg_addr as *mut DoorbellRegister) };
-        door_reg.ring(dci.value(), 0);
+        door_reg.ring(dci.value, 0);
 
         Ok(())
     }
@@ -254,7 +262,7 @@ impl UsbDevice for XhciDevice{
     fn interrupt_in(&mut self, ep_id: EndpointID, buf: &mut [u8]) -> Result<(), ()>{
         let dci = DeviceContextIndex::new(ep_id.address());
 
-        let ring = match &mut self.transfer_rings[dci.value() as usize]{
+        let ring = match &mut self.transfer_rings[dci.value as usize]{
             Some(ring) => {
                 ring
             }
@@ -269,7 +277,7 @@ impl UsbDevice for XhciDevice{
         let _ = ring.push(&norml_trb_bit);
 
         let door_reg = unsafe{ &mut *(self.dbreg_addr as *mut DoorbellRegister) };
-        door_reg.ring(dci.value(), 0);
+        door_reg.ring(dci.value, 0);
 
         Ok(())
     }
