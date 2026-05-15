@@ -8,7 +8,7 @@ use core::default;
 
 
 // デフォルトコントロールパイプ（エンドポイント0, IN）
-const DEFAULT_CONTROL_PIPE_ID: EndpointID = EndpointID::from_parts(0, true);
+pub const DEFAULT_CONTROL_PIPE_ID: EndpointID = EndpointID::from_parts(0, true);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EndpointType{

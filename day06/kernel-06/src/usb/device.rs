@@ -11,7 +11,7 @@ use alloc::boxed::Box;
 use crate::usb::classdriver::base::ClassDriver;
 use crate::usb::setupdata::{SetupData, request_type, request, descriptor_type};
 use crate::usb::memory_alloc::ArrayMap;
-use crate::usb::endpoint::{EndpointConfig, EndpointID};
+use crate::usb::endpoint::{EndpointConfig, EndpointID, DEFAULT_CONTROL_PIPE_ID};
 use crate::usb::descriptor::{descriptor_dynamic_cast, Descriptor, DeviceDescriptor, ConfigurationDescriptor, InterfaceDescriptor, EndpointDescriptor, HIDDescriptor};
 
 // 全ての規格のUSBが実装するべきメソッド
@@ -160,6 +160,7 @@ impl <C: UsbDevice> Device<C>{
                 }
             }
             _ => {
+                // err
                 todo!("エラーハンドリングする")
             }
         }
@@ -240,8 +241,38 @@ impl <C: UsbDevice> Device<C>{
         None
     }
 
-    fn get_descriptor() {
+    fn get_descriptor(&mut self) {
+        let mut setup_data = SetupData::default();
+        setup_data.request_type.set_direction(request_type::DIR_IN);
+        setup_data.request_type.set_ty(request_type::TYPE_STANDARD);
+        setup_data.request_type.set_recipient(request_type::RECIPIENT_DEVICE);
+        setup_data.request = request::GET_DESCRIPTOR;
+        setup_data.value = ((ConfigurationDescriptor::TYPE as u16) << 8) | self.config_index as u16;
+        setup_data.index = 0;
+        setup_data.length = self.buf.len() as u16;
         
+        Self::control_in_raw(
+            &mut self.controller,
+            &mut self.event_waiters,
+            DEFAULT_CONTROL_PIPE_ID,
+            setup_data,
+            Some(&mut self.buf),
+            None,
+        );
+    }
+
+    fn control_in_raw(
+        controller: &mut C,
+        event_waiters: &mut ArrayMap<SetupData, usize, 4>,
+        ep_id: EndpointID,
+        setup_data: SetupData,
+        buf: Option<&mut [u8]>,
+        issuer: Option<usize>,
+    ) {
+        if let Some(addr) = issuer {
+            event_waiters.put(setup_data, addr);
+        }
+        controller.control_in(ep_id, setup_data, buf);
     }
 
     fn set_configuration() {
