@@ -175,12 +175,12 @@ impl <C: UsbDevice> Device<C>{
         }   
     }
 
-    fn initialize_phase1(&mut self, device_desc: &DeviceDescriptor){
+    fn initialize_phase1(&mut self, device_desc: &DeviceDescriptor) -> Result<(), ()> {
         self.num_configurations = device_desc.num_configurations;
         self.config_index = 0;
         self.initialize_phase = 2;
 
-        self.get_descriptor(ConfigurationDescriptor::TYPE);
+        return self.get_descriptor(ConfigurationDescriptor::TYPE);
         // log
         // err
     }
@@ -194,7 +194,7 @@ impl <C: UsbDevice> Device<C>{
 
             let num_ep_configs = 0;
             while num_ep_configs < if_desc.num_endpoints{
-                let desc = config_reader.next().unwrap_or_else(break);
+                let desc = config_reader.next().unwrap_or_else(break); // なんでこれunreachable?
                 if let Some(ep_desc) = descriptor_dynamic_cast::<EndpointDescriptor>(desc){
                     let config = self.make_config(ep_desc);
                     self.ep_configs[num_ep_configs as usize] = config;
@@ -236,12 +236,15 @@ impl <C: UsbDevice> Device<C>{
         None
     }
 
-    fn make_config(&self, ep_desc: &EndpointDescriptor) -> Option<> {
-
-        None
+    fn make_config(&self, ep_desc: &EndpointDescriptor) -> EndpointConfig {
+        let mut ep_conf = EndpointConfig::default();
+        ep_conf.ep_id = EndpointID::from_parts(ep_desc.endpoint_address.number(), ep_desc.endpoint_address.dir_in() == 1);
+        ep_conf.max_packet_size = ep_desc.max_packet_size;
+        ep_conf.interval = ep_desc.interval;
+        ep_conf
     }
 
-    fn get_descriptor(&mut self, desc_type: u8) {
+    fn get_descriptor(&mut self, desc_type: u8) -> Result<(), ()> {
         let mut setup_data = SetupData::default();
         setup_data.request_type.set_direction(request_type::DIR_IN);
         setup_data.request_type.set_ty(request_type::TYPE_STANDARD);
@@ -251,7 +254,7 @@ impl <C: UsbDevice> Device<C>{
         setup_data.index = 0;
         setup_data.length = self.buf.len() as u16;
         
-        Self::control_in_raw(
+        return Self::control_in_raw(
             &mut self.controller,
             &mut self.event_waiters,
             DEFAULT_CONTROL_PIPE_ID,
@@ -268,11 +271,11 @@ impl <C: UsbDevice> Device<C>{
         setup_data: SetupData,
         buf: Option<&mut [u8]>,
         issuer: Option<usize>,
-    ) {
+    ) -> Result<(), ()> {
         if let Some(addr) = issuer {
             event_waiters.put(setup_data, addr);
         }
-        controller.control_in(ep_id, setup_data, buf);
+        return controller.control_in(ep_id, setup_data, buf);
     }
 
     fn set_configuration() {
