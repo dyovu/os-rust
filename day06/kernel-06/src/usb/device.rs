@@ -186,6 +186,7 @@ impl <C: UsbDevice> Device<C>{
     }
 
     fn initialize_phase2(&self, buf_u8: &[u8]){
+        let conf_desc = descriptor_dynamic_cast::<ConfigurationDescriptor>(buf_u8).unwrap_or_else(return);
         let mut config_reader = ConfigurationDescriptorReader::new(buf_u8);
         let mut class_driver = None;
 
@@ -199,8 +200,7 @@ impl <C: UsbDevice> Device<C>{
                     let config = self.make_config(ep_desc);
                     self.ep_configs[num_ep_configs as usize] = config;
                     num_ep_configs += 1;
-
-                    self.class_drivers[config.ep_id.number()] = class_driver;
+                    self.class_drivers[config.ep_id.number() as usize] = class_driver;
                 }else if let Some(hid_desc) = descriptor_dynamic_cast::<HIDDescriptor>(desc){
                     // log
                 }
@@ -216,7 +216,7 @@ impl <C: UsbDevice> Device<C>{
             return 
         }
         self.initialize_phase = 3;
-        self.set_configuration();
+        self.set_configuration(conf_desc.configuration_value);
     }
 
     fn initialize_phase3(&self, config_value: u8){
@@ -278,7 +278,37 @@ impl <C: UsbDevice> Device<C>{
         return controller.control_in(ep_id, setup_data, buf);
     }
 
-    fn set_configuration() {
+    fn set_configuration(&mut self, config_value: u8) {
+        let mut setup_data = SetupData::default();
+        setup_data.request_type.set_direction(request_type::DIR_OUT);
+        setup_data.request_type.set_ty(request_type::TYPE_STANDARD);
+        setup_data.request_type.set_recipient(request_type::RECIPIENT_DEVICE);
+        setup_data.request = request::SET_CONFIGURATION;
+        setup_data.value = config_value as u16;
+        setup_data.index = 0;
+        setup_data.length = 0;
 
+        Self::control_out_raw(
+            &mut self.controller,
+            &mut self.event_waiters,
+            DEFAULT_CONTROL_PIPE_ID,
+            setup_data,
+            None,
+            None,
+        );
+    }
+
+    fn control_out_raw(
+        controller: &mut C,
+        event_waiters: &mut ArrayMap<SetupData, usize, 4>,
+        ep_id: EndpointID,
+        setup_data: SetupData,
+        buf: Option<&mut [u8]>,
+        issuer: Option<usize>,
+    ) {
+        if let Some(addr) = issuer {
+            event_waiters.put(setup_data, addr);
+        }
+        controller.control_out(ep_id, setup_data, buf);
     }
 }
