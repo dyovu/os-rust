@@ -69,8 +69,8 @@ impl EndpointID{
 pub struct EndpointConfig{
     pub ep_id: EndpointID,
     pub ep_type: EndpointType,
-    pub max_packet_size: i32,  // エンドポイントの最大パケットサイズ（バイト）
-    pub interval: i32, // このエンドポイントの制御周期（125*2^(interval-1) マイクロ秒）
+    pub max_packet_size: u16,  // エンドポイントの最大パケットサイズ（バイト）
+    pub interval: u8, // このエンドポイントの制御周期（125*2^(interval-1) マイクロ秒）
 }
 
 impl EndpointConfig{

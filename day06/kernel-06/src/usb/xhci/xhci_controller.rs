@@ -244,7 +244,7 @@ impl Controller {
             for i in 0..len {
                 let cnf: EndpointConfig = configs[i];
                 let ep_dci = DeviceContextIndex::new(cnf.ep_id.address());
-                let interval = convert_interval(cnf.ep_type, cnf.interval as u8);
+                let interval = convert_interval(cnf.ep_type, cnf.interval);
 
                 let tr_addr = dev.controller.alloc_transfer_ring(ep_dci, 32);
 
@@ -256,7 +256,7 @@ impl Controller {
                     EndpointType::Interrupt   => if cnf.ep_id.is_in() { 7 } else { 3 },
                 };
                 ep_ctx.set_ep_type(ep_type_val);
-                ep_ctx.set_max_packet_size(cnf.max_packet_size as u16);
+                ep_ctx.set_max_packet_size(cnf.max_packet_size);
                 ep_ctx.set_interval(interval);
                 ep_ctx.set_average_trb_length(1);
                 ep_ctx.set_transfer_ring_buffer(tr_addr);
