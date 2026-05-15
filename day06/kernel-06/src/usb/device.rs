@@ -180,7 +180,7 @@ impl <C: UsbDevice> Device<C>{
         self.config_index = 0;
         self.initialize_phase = 2;
 
-        self.get_descriptor();
+        self.get_descriptor(ConfigurationDescriptor::TYPE);
         // log
         // err
     }
@@ -241,13 +241,13 @@ impl <C: UsbDevice> Device<C>{
         None
     }
 
-    fn get_descriptor(&mut self) {
+    fn get_descriptor(&mut self, desc_type: u8) {
         let mut setup_data = SetupData::default();
         setup_data.request_type.set_direction(request_type::DIR_IN);
         setup_data.request_type.set_ty(request_type::TYPE_STANDARD);
         setup_data.request_type.set_recipient(request_type::RECIPIENT_DEVICE);
         setup_data.request = request::GET_DESCRIPTOR;
-        setup_data.value = ((ConfigurationDescriptor::TYPE as u16) << 8) | self.config_index as u16;
+        setup_data.value = ((desc_type as u16) << 8) | self.config_index as u16;
         setup_data.index = 0;
         setup_data.length = self.buf.len() as u16;
         
