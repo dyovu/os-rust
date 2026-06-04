@@ -382,16 +382,18 @@ impl Controller {
         }        
     }
 
-    fn on_event_ptc(&self, trb: &PortStatusChangeEventTRB){
+    fn on_event_ptc(&mut self, trb: &PortStatusChangeEventTRB) {
         let port_id = trb.port_id();
         let port = self.port_at(port_id);
 
         match self.port_config_phase[port_id as usize] {
             ConfigPhase::NotConnected => {
-                self.reset_port()
+                let _ = self.reset_port(port);
+                // err
             }
             ConfigPhase::ResettingPort => {
-                self.enable_slot()
+                let _ = self.enable_slot(port);
+                // err
             }
             _ => {
                 loop{}
@@ -422,12 +424,43 @@ impl Controller {
         prs
     }
 
-    fn reset_port(&self) {
+    fn reset_port(&mut self, port: Port) -> Result<(), () >{
+        let is_connected = port.is_connected();
 
+        if !is_connected {
+            //err
+            // log
+            return Ok(())
+        }
+
+        if self.addressing_port != 0{
+            self.port_config_phase[port.port_id as usize] = ConfigPhase::WaitingAddressed;
+        }else{
+            let phase = self.port_config_phase[port.port_id as usize];
+            if phase != ConfigPhase::NotConnected && phase != ConfigPhase::WaitingAddressed{
+                return Err(())
+            }
+            self.addressing_port = port.port_id;
+            self.port_config_phase[port.port_id as usize] = ConfigPhase::ResettingPort;
+            port.reset();
+        }
+
+        Ok(())
     }
 
-    fn enable_slot(&self) {
-        
+    fn enable_slot(&mut self, port: Port) -> Result<(), ()>{
+        let is_enabled: bool = port.is_enabled();
+        let reset_completed: bool = port.is_port_reset_changed();
+
+        if is_enabled && reset_completed {
+            port.clear_port_reset_change();
+
+            self.port_config_phase[port.port_id as usize] = ConfigPhase::EnablingSlot;
+            let  trb = EnableSlotCommandTRB::initialize();
+            self.push_trb(&trb.into_bytes());
+        }
+        // err
+        return Ok(())
     }
 
     fn most_significant_bit(&self, value: u8) -> u8 {
