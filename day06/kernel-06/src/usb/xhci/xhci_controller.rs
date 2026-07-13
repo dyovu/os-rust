@@ -197,7 +197,7 @@ impl Controller {
             };
             let port_id = dev.controller.ctx.slot_context.root_hub_port_num();
             let len = dev.num_ep_configs;
-            let mut configs = [EndpointConfig::default(); 16];
+            let mut configs: [EndpointConfig; 16] = [EndpointConfig::default(); 16];
             for i in 0..len {
                 configs[i] = dev.ep_configs[i];
             }
